@@ -1,0 +1,9 @@
+# binary
+fft
+.cache
+.cproject
+.project
+.settings
+.xxproject
+Makefile
+bin

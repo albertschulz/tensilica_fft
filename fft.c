@@ -1,62 +1,73 @@
 #include "fft.h"
 #include "sinwave.h"
+#include <xtensa/tie/fft.h>
+#include "tie_defines.h"
 
-int fix_fft(fixed fr[], fixed fi[], int numberOfStages, int inverse)
+int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 {
-    int mr,nn,i,j,l,k,istep, numberOfInputData, scale, shift;
+    int mr,nn,i,j,l,k,istep, n, scale, shift;
     
     fixed qr,qi;		//even input
     fixed tr,ti;		//odd input
     fixed wr,wi;		//twiddle factor
     
     //number of input data (n = 2^m), m is the number of stages
-    numberOfInputData = 1 << numberOfStages;
+    n = 1 << m;
+    
+    int size = m;
 
-    if(numberOfInputData > N_WAVE) return -1;
+    if(n > N_WAVE) return -1;
 
     mr = 0;
-    nn = numberOfInputData - 1;
+    nn = n - 1;
     scale = 0;
 
     /* decimation in time - re-order data */
-    for(numberOfStages=1; numberOfStages<=nn; ++numberOfStages) 
+    for(m=1; m<=nn; ++m) 
     {
-        l = numberOfInputData;
-        do
-        {
-        	l >>= 1;
-        } while(mr+l > nn);
-        
-        mr = (mr & (l-1)) + l;
+    	
+#if FFT_TIE_FAST_BIT_REVERSAL 
+    	mr = FFT_REVERSE_BITS(m, size);
+#else
+    	l = n;
+    	do
+    	{
+    	    l >>= 1;
+    	} while(mr+l > nn);
+    	    	        
+    	mr = (mr & (l-1)) + l;
+#endif
 
-        if(mr <= numberOfStages) continue;
+        if(mr <= m) continue;
         
-        tr = fr[numberOfStages];
-        fr[numberOfStages] = fr[mr];
+        // swap contents of memory (real part)
+        tr = fr[m];
+        fr[m] = fr[mr];
         fr[mr] = tr;
         
-        ti = fi[numberOfStages];
-        fi[numberOfStages] = fi[mr];
+        // swap contents of memory (imaginary part)
+        ti = fi[m];
+        fi[m] = fi[mr];
         fi[mr] = ti;
     }
 	    
     l = 1;
     k = LOG2_N_WAVE-1;
-    while(l < numberOfInputData)
+    while(l < n)
     {
         if(inverse)
         {
             /* variable scaling, depending upon data */
             shift = 0;
-            for(i=0; i<numberOfInputData; ++i)
+            for(i=0; i<n; ++i)
             {
                 j = fr[i];
                 if(j < 0) j = -j;
                 
-                numberOfStages = fi[i];
-                if(numberOfStages < 0) numberOfStages = -numberOfStages;
+                m = fi[i];
+                if(m < 0) m = -m;
                 
-                if(j > 16383 || numberOfStages > 16383)
+                if(j > 16383 || m > 16383)
                 {
                     shift = 1;
                     break;
@@ -76,9 +87,9 @@ int fix_fft(fixed fr[], fixed fi[], int numberOfStages, int inverse)
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
         istep = l << 1;		//step width of current butterfly
-        for(numberOfStages=0; numberOfStages<l; ++numberOfStages)
+        for(m=0; m<l; ++m)
         {
-            j = numberOfStages << k;
+            j = m << k;
             /* 0 <= j < N_WAVE/2 */
             wr =  Sinewave[j+N_WAVE/4];
             wi = -Sinewave[j];
@@ -89,10 +100,15 @@ int fix_fft(fixed fr[], fixed fi[], int numberOfStages, int inverse)
                 wr >>= 1;
                 wi >>= 1;
             }
-            for(i=numberOfStages; i<numberOfInputData; i+=istep)
+            for(i=m; i<n; i+=istep)
             {
             	
                 j = i + l;
+                
+                // Multiply twiddle factors                
+                // tr = FFT_MUL_ADD((wr<<16) | wi, (fr[j]<<16) | fi[j]);
+                // ti = FFT_MUL_SUB((wr<<16) | wi, (fi[j]<<16) | fr[j]);
+                
                 tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]);
                 ti = fix_mpy(wr,fi[j]) + fix_mpy(wi,fr[j]);
                 

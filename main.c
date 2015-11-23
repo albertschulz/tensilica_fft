@@ -6,18 +6,10 @@
 #define M       3
 #define NumberOfPoints       (1<<M)
 
-/*
- * select TIE version:
- * TODO: add different tie versions to have a speedup
- */
-#define FFT_TIE	0
-
 fixed real[NumberOfPoints], imag[NumberOfPoints];
 
 void generateInputData() 
-{
-	//const float pi = 3.1415926535;
-	
+{	
 	int i;
     for(i=0; i < NumberOfPoints; i++)
     {
@@ -46,12 +38,20 @@ int main()
 	printData(real, imag, NumberOfPoints);
 	
     //FFT
+	
+	// Default implementation needs 2446 cycles
     fix_fft(real, imag, M, 0);
     
     printf("\nFFT\n");
     printData(real, imag, NumberOfPoints);
     
     //IFFT
+    
+    // Default implementation needs 3470 cycles 
+    // (this has been calculated by decrease the number 
+    // of cycles for fft+ifft by the number of cycles 
+    // when running the fft only. Only cycles for fix_fft() 
+    // function calls are considered)
     fix_fft(real, imag, M, 1);
     
     printf("\nIFFT\n");

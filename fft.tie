@@ -1,0 +1,5 @@
+operation FFT_FIX_MUL {out AR c, in AR a, in AR b} { } 
+{ 
+	wire [31:0] product = TIEmul(a[15:0], b[15:0], 1'b1); 
+	assign c = product>>15;
+}

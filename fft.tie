@@ -3,3 +3,48 @@ operation FFT_FIX_MUL {out AR c, in AR a, in AR b} { }
 	wire [31:0] product = TIEmul(a[15:0], b[15:0], 1'b1); 
 	assign c = product>>15;
 }
+
+operation FFT_MUL_ADD {out AR result, in AR a, in AR b} {}
+{
+	wire [31:0] product1 = TIEmul(a[15:0], b[15:0], 1'b1);
+	wire [31:0] product2 = TIEmul(a[31:16], b[31:16], 1'b1);
+	assign result = TIEadd(product1, product2, 1'b0);
+}
+
+schedule FFT_MUL_ADD_SCHED {FFT_MUL_ADD} 
+{ 
+	def result 2;
+}
+
+operation FFT_MUL_SUB {out AR result, in AR a, in AR b} {}
+{
+	wire [31:0] product1 = TIEmul(a[15:0], b[15:0], 1'b1);
+	wire [31:0] product2 = TIEmul(a[31:16], b[31:16], 1'b1);
+	assign result = product1 - product2;
+}
+
+schedule FFT_MUL_SUB_SCHED {FFT_MUL_SUB} 
+{ 
+	def result 2;
+}
+
+operation FFT_REVERSE_BITS {in AR d, in AR size, out AR reversed_data} {}
+{
+    assign reversed_data = {
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4], d[5]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4], d[5], d[6]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11]),
+        TIEmux(size[3:0], 1'b0, 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12]),
+        TIEmux(size[3:0], 1'b0, 1'b0, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13]),
+        TIEmux(size[3:0], 1'b0, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14])
+    };
+}

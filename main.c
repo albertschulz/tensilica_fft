@@ -6,8 +6,6 @@
 #define M       3
 #define NumberOfPoints       (1<<M)
 
-// Temp Comment
-
 fixed real[NumberOfPoints], imag[NumberOfPoints];
 
 void generateInputData() 

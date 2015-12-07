@@ -8,7 +8,7 @@
 
 fixed real[NumberOfPoints], imag[NumberOfPoints];
 
-void generateInputData() 
+void generateInputData_Daniel() 
 {	
 	int i;
     for(i=0; i < NumberOfPoints; i++)

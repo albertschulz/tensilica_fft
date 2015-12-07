@@ -91,6 +91,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         {
             j = m << k;
             /* 0 <= j < N_WAVE/2 */
+            
+            // Calculate twiddle factor for this stage and stepwidth
             wr =  Sinewave[j+N_WAVE/4];
             wi = -Sinewave[j];
             
@@ -105,13 +107,17 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             	
                 j = i + l;
                 
+                //// Implementation of FFT compute node (see task Fig.2)
+                
+                
                 // Multiply twiddle factors                
                 // tr = FFT_MUL_ADD((wr<<16) | wi, (fr[j]<<16) | fi[j]);
                 // ti = FFT_MUL_SUB((wr<<16) | wi, (fi[j]<<16) | fr[j]);
                 
-                tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]);
-                ti = fix_mpy(wr,fi[j]) + fix_mpy(wi,fr[j]);
+                tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]); // complex mult (real)
+                ti = fix_mpy(wr,fi[j]) + fix_mpy(wi,fr[j]); // complex mult (imag)
                 
+                // load even value (complex)
                 qr = fr[i];
                 qi = fi[i];
                 
@@ -121,6 +127,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                         qi >>= 1;
                 }
                 
+                // Summation in upper and lower FFT compute nodes (see task Fig.2)
                 fr[j] = qr - tr;
                 fi[j] = qi - ti;
                 fr[i] = qr + tr;

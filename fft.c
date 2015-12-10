@@ -53,7 +53,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 	    
     l = 1;
     k = LOG2_N_WAVE-1;
-    while(l < n)
+    while(l < n) // 1 run per stage
     {
         if(inverse)
         {
@@ -81,15 +81,17 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                there will be log2(n) passes, so this
                results in an overall factor of 1/n,
                distributed to maximize arithmetic accuracy. */
-            shift = 1;
+            shift = 1; // evaluate putting this out of loop
         }
         
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
         istep = l << 1;		//step width of current butterfly
+        
+        // for each twiddle factor all butterfly nodes are computed (in inner for loop)
         for(m=0; m<l; ++m)
         {
-            j = m << k;
+            j = m << k; // j = m * (2^k)
             /* 0 <= j < N_WAVE/2 */
             
             // Calculate twiddle factor for this stage and stepwidth
@@ -99,9 +101,12 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             if(inverse) wi = -wi;
             if(shift)
             {
+            	// simply, scaling of twiddle factors to ensure maximum arithmetic precision
                 wr >>= 1;
                 wi >>= 1;
             }
+            
+            // all butterfly compute node executions with one specific twiddle factor
             for(i=m; i<n; i+=istep)
             {
             	
@@ -123,6 +128,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 
                 if(shift)
                 {
+                		// simply, scaling of even samples to match result of multiplication with scaled twiddle factor (scaling of twiddle factor before the loop)
                         qr >>= 1;
                         qi >>= 1;
                 }

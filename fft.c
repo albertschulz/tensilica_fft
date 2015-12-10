@@ -121,25 +121,35 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 // tr = FFT_MUL_SUB((wr<<16) | wi, (fr[j]<<16) | fi[j]);
                 // ti = FFT_MUL_ADD((wr<<16) | wi, (fi[j]<<16) | fr[j]);
                 
+				// load even value (complex)
+				qr = fr[i];
+				qi = fi[i];
+                
+#if FFT_TIE_BUTTERFLY_CALC
+                
+                VR output = FFT_CALC_BUTTERFLY( (qr << 16) | qi, (fr[j] << 16) | fi[j], (wr << 16) | wi);
+                
+                fr[j] = output >> 48;
+                fi[j] = output >> 32;
+                fr[i] = output >> 16;
+                fi[i] = output;
+#else
+
                 tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]); // complex mult (real)
-                ti = fix_mpy(wr,fi[j]) + fix_mpy(wi,fr[j]); // complex mult (imag)
-                
-                // load even value (complex)
-                qr = fr[i];
-                qi = fi[i];
-                
-                if(shift)
-                {
-                		// simply, scaling of even samples to match result of multiplication with scaled twiddle factor (scaling of twiddle factor before the loop)
-                        qr >>= 1;
-                        qi >>= 1;
-                }
-                
-                // Summation in upper and lower FFT compute nodes (see task Fig.2)
-                fr[j] = qr - tr;
-                fi[j] = qi - ti;
-                fr[i] = qr + tr;
-                fi[i] = qi + ti;
+                ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]); // complex mult (imag)
+
+				if (shift) {
+					// simply, scaling of even samples to match result of multiplication with scaled twiddle factor (scaling of twiddle factor before the loop)
+					qr >>= 1;
+					qi >>= 1;
+				}
+
+				// Summation in upper and lower FFT compute nodes (see task Fig.2)
+				fr[j] = qr - tr;
+				fi[j] = qi - ti;
+				fr[i] = qr + tr;
+				fi[i] = qi + ti;
+#endif
             }
         }
         --k;

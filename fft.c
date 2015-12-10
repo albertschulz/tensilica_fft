@@ -115,9 +115,11 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 //// Implementation of FFT compute node (see task Fig.2)
                 
                 
-                // Multiply twiddle factors                
-                // tr = FFT_MUL_ADD((wr<<16) | wi, (fr[j]<<16) | fi[j]);
-                // ti = FFT_MUL_SUB((wr<<16) | wi, (fi[j]<<16) | fr[j]);
+                // Multiply twiddle factors 
+                
+                // this does a wrong calculation
+                // tr = FFT_MUL_SUB((wr<<16) | wi, (fr[j]<<16) | fi[j]);
+                // ti = FFT_MUL_ADD((wr<<16) | wi, (fi[j]<<16) | fr[j]);
                 
                 tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]); // complex mult (real)
                 ti = fix_mpy(wr,fi[j]) + fix_mpy(wi,fr[j]); // complex mult (imag)

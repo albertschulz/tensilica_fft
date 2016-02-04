@@ -126,13 +126,23 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				qi = fi[i];
                 
 #if FFT_TIE_BUTTERFLY_CALC
+				
+				#define aligned_by_16 __attribute__ ((aligned(16)))
+				fixed out_data[4] aligned_by_16;
+				VR *p_out;
+				
+				int a = (qr << 16) | qi;
                 
                 VR output = FFT_CALC_BUTTERFLY( (qr << 16) | qi, (fr[j] << 16) | fi[j], (wr << 16) | wi);
                 
-                fr[j] = output >> 48;
-                fi[j] = output >> 32;
-                fr[i] = output >> 16;
-                fi[i] = output;
+                p_out = (VR *)out_data;
+                
+                *p_out = output;
+                
+                fr[j] = out_data[3];
+                fi[j] = out_data[2];
+                fr[i] = out_data[1];
+                fi[i] = out_data[0];
 #else
 
                 tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]); // complex mult (real)

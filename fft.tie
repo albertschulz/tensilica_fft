@@ -61,8 +61,14 @@ operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, out VR odd_e
 	wire [31:0] oddi_wr = TIEmul(odd[15:0], twiddle[31:15], 1'b1);
 	wire [31:0] oddi 	= TIEadd(oddr_wi, oddi_wr, 1'b0);
 	
-	wire [31:0] even_out 		= {TIEadd( {even[30:16], 1'b0}, oddr, 1'b0),  TIEadd( {even[14:0], 1'b0}, oddi, 1'b0)};
+	wire [15:0] a = TIEadd( {even[30:16], 1'b0}, oddr, 1'b0);
+	wire [15:0] b = TIEadd( {even[14:0], 1'b0}, oddi, 1'b0);
+		
+	wire [15:0] c = {a[14:0], 1'b0}; 
+	
+	wire [31:0] even_out 		= {a,  b};
 	wire [31:0] odd_out			= {TIEadd( {even[30:16], 1'b0}, ~oddr, 1'b1), TIEadd( {even[14:0], 1'b0}, ~oddi, 1'b1)};
+	
 	
 	assign odd_even_out = {odd_out, even_out};
 }

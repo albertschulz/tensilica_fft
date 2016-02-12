@@ -107,20 +107,17 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 wi >>= 1;
             }
             
+#if FFT_TIE_BUTTERFLY_CALC
+            int twiddle = ((wr << 16) | (wi & 0xffff));
+#endif
+            
             // all butterfly compute node executions with one specific twiddle factor
-            for(i=m; i<n; i+=istep)
+            for(i=m; i<n; i = i+istep)
             {
-            	
                 j = i + l;
                 
                 //// Implementation of FFT compute node (see task Fig.2)
                 
-                
-                // Multiply twiddle factors 
-                
-                // this does a wrong calculation
-                // tr = FFT_MUL_SUB((wr<<16) | wi, (fr[j]<<16) | fi[j]);
-                // ti = FFT_MUL_ADD((wr<<16) | wi, (fi[j]<<16) | fr[j]);
                 
 				// load even value (complex)
 				qr = fr[i];
@@ -132,7 +129,6 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				fixed out_data[4] aligned_by_16;
 				VR *p_out;
 				
-				int twiddle = ((wr << 16) | (wi & 0xffff));
 				int q = ((qr << 16) | (qi & 0xffff));
 				int f = ((fr[j] << 16) | (fi[j]) & 0xffff);
                 

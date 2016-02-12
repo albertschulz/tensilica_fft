@@ -1,5 +1,6 @@
 #include "fft.h"
 #include "sinwave.h"
+#include <xtensa/tie/xt_booleans.h>
 #include <xtensa/tie/fft.h>
 #include "tie_defines.h"
 
@@ -131,12 +132,13 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				fixed out_data[4] aligned_by_16;
 				VR *p_out;
 				
-				int a = (qr << 16) | qi;
+				int twiddle = ((wr << 16) | (wi & 0xffff));
+				int q = ((qr << 16) | (qi & 0xffff));
+				int f = ((fr[j] << 16) | (fi[j]) & 0xffff);
                 
-                VR output = FFT_CALC_BUTTERFLY( (qr << 16) | qi, (fr[j] << 16) | fi[j], (wr << 16) | wi);
+                VR output = FFT_CALC_BUTTERFLY(q, f, twiddle, (xtbool)shift);
                 
                 p_out = (VR *)out_data;
-                
                 *p_out = output;
                 
                 fr[j] = out_data[3];
@@ -145,9 +147,14 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 fi[i] = out_data[0];
 #else
 
-                tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]); // complex mult (real)
-                ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]); // complex mult (imag)
-
+                fixed d = fix_mpy(wr, fr[j]);
+                fixed e = fix_mpy(wi, fi[j]);
+                fixed g = fix_mpy(wi, fr[j]);
+                fixed f = fix_mpy(wr, fi[j]);
+                
+                tr = d - e; // complex mult (real)
+                ti = f + g; // complex mult (imag)
+                
 				if (shift) {
 					// simply, scaling of even samples to match result of multiplication with scaled twiddle factor (scaling of twiddle factor before the loop)
 					qr >>= 1;
@@ -155,6 +162,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				}
 
 				// Summation in upper and lower FFT compute nodes (see task Fig.2)
+				
 				fr[j] = qr - tr;
 				fi[j] = qi - ti;
 				fr[i] = qr + tr;

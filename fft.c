@@ -4,6 +4,8 @@
 #include <xtensa/tie/fft.h>
 #include "tie_defines.h"
 
+#define aligned_by_16 __attribute__ ((aligned(16)))
+
 int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 {
     int mr,nn,i,j,l,k,istep, n, scale, shift;
@@ -96,6 +98,13 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             /* 0 <= j < N_WAVE/2 */
             
             // Calculate twiddle factor for this stage and stepwidth
+            
+#if FFT_TIE_CALC_TWIDDLE_FACTORS
+            fixed twiddle_out[2] aligned_by_16;
+            int *twiddle_out_ptr = (int *)twiddle_out;
+            
+            *twiddle_out_ptr = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
+#else
             wr =  Sinewave[j+N_WAVE/4];
             wi = -Sinewave[j];
             
@@ -106,9 +115,20 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 wr >>= 1;
                 wi >>= 1;
             }
+#endif
             
-#if FFT_TIE_BUTTERFLY_CALC
+#if FFT_TIE_CALC_TWIDDLE_FACTORS && !FFT_TIE_BUTTERFLY_CALC
+            wr = twiddle_out[1];
+            wi = twiddle_out[0];
+#endif
+            
+#if FFT_TIE_BUTTERFLY_CALC && !FFT_TIE_CALC_TWIDDLE_FACTORS
             int twiddle = ((wr << 16) | (wi & 0xffff));
+#endif
+    
+            // In this case we already have twiddle factors in the form wr&wi, so we dont need to do it manually again
+#if FFT_TIE_BUTTERFLY_CALC && FFT_TIE_CALC_TWIDDLE_FACTORS
+            int twiddle = *twiddle_out_ptr;
 #endif
             
             // all butterfly compute node executions with one specific twiddle factor
@@ -125,18 +145,14 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 
 #if FFT_TIE_BUTTERFLY_CALC
 				
-				#define aligned_by_16 __attribute__ ((aligned(16)))
 				fixed out_data[4] aligned_by_16;
-				VR *p_out;
+				VR *p_out = (VR *)out_data;
 				
 				int q = ((qr << 16) | (qi & 0xffff));
 				int f = ((fr[j] << 16) | (fi[j]) & 0xffff);
                 
-                VR output = FFT_CALC_BUTTERFLY(q, f, twiddle, shift);
-                
-                p_out = (VR *)out_data;
-                *p_out = output;
-                
+				*p_out = FFT_CALC_BUTTERFLY(q, f, twiddle, shift);
+                                
                 fr[j] = out_data[3];
                 fi[j] = out_data[2];
                 fr[i] = out_data[1];

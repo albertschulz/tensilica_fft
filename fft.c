@@ -136,7 +136,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				int q = ((qr << 16) | (qi & 0xffff));
 				int f = ((fr[j] << 16) | (fi[j]) & 0xffff);
                 
-                VR output = FFT_CALC_BUTTERFLY(q, f, twiddle, (xtbool)shift);
+                VR output = FFT_CALC_BUTTERFLY(q, f, twiddle, shift);
                 
                 p_out = (VR *)out_data;
                 *p_out = output;

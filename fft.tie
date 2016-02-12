@@ -49,23 +49,60 @@ operation FFT_REVERSE_BITS {in AR d, in AR size, out AR reversed_data} {}
     };
 }
 
+operation FFT_FIX_MPY{in AR a, in AR b, out AR dest} {}
+{
+	wire [31:0] c = TIEmul(a, b, 1'b1);
+	assign dest = c[30:15];
+}
+
+function [15:0] Sub ([15:0] a, [15:0] b)
+{
+	assign Sub = TIEadd(a, ~b, 1'b1);
+}
+
 regfile VR 64 2 vrf
 
-operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, out VR odd_even_out} {}
+// Upper 16 Bits:Real Part; lower 16 Bits are the imag part
+operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, in BR shift, out VR odd_even_out} {}
 {
-	wire [31:0] oddr_wr = TIEmul(odd[31:16], twiddle[31:16], 1'b1);
-	wire [31:0] oddi_wi = TIEmul(odd[15:0], twiddle[15:0], 1'b1);
-	wire [31:0] oddr 	= TIEadd(oddr_wr, ~oddi_wi, 1'b1);
+	wire [15:0] wr 		= twiddle[31:16];
+	wire [15:0] wi 		= twiddle[15:0];
+	wire [15:0] qr 		= even[31:16];
+	wire [15:0] qi 		= even[15:0];
+	wire [15:0] fr_j 	= odd[31:16];
+	wire [15:0] fi_j 	= odd[15:0];
+	wire [15:0] qr_half	= TIEmux(shift, qr, {1{qr[15]}, qr[15:1]});
+	wire [15:0] qi_half	= TIEmux(shift, qi, {1{qi[15]}, qi[15:1]});
 	
-	wire [31:0] oddr_wi = TIEmul(odd[31:16], twiddle[15:0], 1'b1);
-	wire [31:0] oddi_wr = TIEmul(odd[15:0], twiddle[31:15], 1'b1);
-	wire [31:0] oddi 	= TIEadd(oddr_wi, oddi_wr, 1'b0);
+	// oddr_wr = wr * fr_j
+	wire [31:0] d = TIEmul(wr, fr_j, 1'b1);
+	wire [15:0] oddr_wr = d[30:15];
+
+	// oddi_wi = wi * fi_j
+	wire [31:0] e = TIEmul(wi, fi_j, 1'b1);
+	wire [15:0] oddi_wi = e[30:15];
 	
-	wire [15:0] a = TIEadd( {even[30:16], 1'b0}, oddr[15:0], 1'b0);
-	wire [15:0] b = TIEadd( {even[14:0], 1'b0}, oddi[15:0], 1'b0);
+	wire [15:0] tr 		= Sub(oddr_wr, oddi_wi);
+	
+	// oddr_wi = fr_j * wi
+	wire [31:0] g = TIEmul(fr_j, wi, 1'b1);
+	wire [15:0] oddr_wi = g[30:15];
+	
+	// oddi_wr = fi_j * wr
+	wire [31:0] f = TIEmul(fi_j, wr, 1'b1);
+	wire [15:0] oddi_wr = f[30:15];
+	
+	wire [15:0] ti = TIEadd(oddr_wi, oddi_wr, 1'b0);
+	
+	wire [15:0] a = TIEadd( qr_half, tr, 1'b0);
+	wire [15:0] b = TIEadd( qi_half, ti, 1'b0);
 	
 	wire [31:0] even_out 		= {a,  b};
-	wire [31:0] odd_out			= {TIEadd( {even[30:16], 1'b0}, ~oddr, 1'b1), TIEadd( {even[14:0], 1'b0}, ~oddi, 1'b1)};
+	
+	wire [15:0] c = Sub(qr_half, tr); 
+	wire [15:0] k = Sub(qi_half, ti); 
+	
+	wire [31:0] odd_out			= {c, k};
 	
 	assign odd_even_out = {odd_out, even_out};
 }

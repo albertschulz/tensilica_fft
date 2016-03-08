@@ -6,7 +6,8 @@
 #define M       3
 #define NumberOfPoints       (1<<M)
 
-fixed real[NumberOfPoints], imag[NumberOfPoints];
+fixed real[NumberOfPoints] __attribute__ ((section(".dram0.data")));
+fixed imag[NumberOfPoints] __attribute__ ((section(".dram1.data")));
 
 fixed  real_ref[NumberOfPoints], imag_ref[NumberOfPoints];
 

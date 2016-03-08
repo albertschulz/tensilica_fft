@@ -95,29 +95,95 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 
             int twiddle = *twiddle_out_ptr;
             
-            // all butterfly compute node executions with one specific twiddle factor
-            for(i=m; i<n; i = i+istep)
-            {
+            if (istep == 2) {
+            	
+            	i = m;
+            	
                 j = i + l;
                 
                 //// Implementation of FFT compute node (see task Fig.2)
                 
 				// load even value (complex)
-				qr = fr[i];
-				qi = fi[i];
+				fixed qr1 = fr[i];
+				fixed qi1 = fi[i];
+				fixed qr2 = fr[i+2];
+				fixed qi2 = fi[i+2];
+				fixed qr3 = fr[i+4];
+				fixed qi3 = fi[i+4];
+				fixed qr4 = fr[i+6];
+				fixed qi4 = fi[i+6];
 				
-				fixed out_data[4] aligned_by_16;
-				vec4x16 *p_out = (vec4x16 *)out_data;
+				fixed out_data1[4] aligned_by_16;
+				fixed out_data2[4] aligned_by_16;
+				fixed out_data3[4] aligned_by_16;
+				fixed out_data4[4] aligned_by_16;
 				
-				int q = ((qr << 16) | (qi & 0xffff));
-				int f = ((fr[j] << 16) | (fi[j]) & 0xffff);
+				vec4x16 *p_out1 = (vec4x16 *)out_data1;
+				vec4x16 *p_out2 = (vec4x16 *)out_data2;
+				vec4x16 *p_out3 = (vec4x16 *)out_data3;
+				vec4x16 *p_out4 = (vec4x16 *)out_data4;
+				
+				int q1 = ((qr1 << 16) | (qi1 & 0xffff));
+				int q2 = ((qr2 << 16) | (qi2 & 0xffff));
+				int q3 = ((qr3 << 16) | (qi3 & 0xffff));
+				int q4 = ((qr4 << 16) | (qi4 & 0xffff));
+				
+				int f1 = ((fr[j] << 16) | (fi[j]) & 0xffff);
+				int f2 = ((fr[j+2] << 16) | (fi[j+2]) & 0xffff);
+				int f3 = ((fr[j+4] << 16) | (fi[j+4]) & 0xffff);
+				int f4 = ((fr[j+6] << 16) | (fi[j+6]) & 0xffff);
                 
-				*p_out = FFT_CALC_BUTTERFLY(q, f, twiddle, shift);
+				*p_out1 = FFT_CALC_BUTTERFLY(q1, f1, twiddle, shift);
+				*p_out2 = FFT_CALC_BUTTERFLY(q2, f2, twiddle, shift);
+				*p_out3 = FFT_CALC_BUTTERFLY(q3, f3, twiddle, shift);
+				*p_out4 = FFT_CALC_BUTTERFLY(q4, f4, twiddle, shift);
                                 
-                fr[j] = out_data[3];
-                fi[j] = out_data[2];
-                fr[i] = out_data[1];
-                fi[i] = out_data[0];
+				fr[j]   = out_data1[3];
+				fr[j+2] = out_data2[3];
+				fr[j+4] = out_data3[3];
+				fr[j+6] = out_data4[3];
+                
+				fi[j]   = out_data1[2];
+				fi[j+2] = out_data2[2];
+				fi[j+4] = out_data3[2];
+				fi[j+6] = out_data4[2];
+                
+                fr[i]   = out_data1[1];
+                fr[i+2] = out_data2[1];
+                fr[i+4] = out_data3[1];
+                fr[i+6] = out_data4[1];
+                
+                fi[i]   = out_data1[0];
+                fi[i+2] = out_data2[0];
+                fi[i+4] = out_data3[0];
+                fi[i+6] = out_data4[0];
+            	
+            }
+            else {
+	            // all butterfly compute node executions with one specific twiddle factor
+	            for(i=m; i<n; i = i+istep)
+	            {
+	                j = i + l;
+	                
+	                //// Implementation of FFT compute node (see task Fig.2)
+	                
+					// load even value (complex)
+					qr = fr[i];
+					qi = fi[i];
+					
+					fixed out_data[4] aligned_by_16;
+					vec4x16 *p_out = (vec4x16 *)out_data;
+					
+					int q = ((qr << 16) | (qi & 0xffff));
+					int f = ((fr[j] << 16) | (fi[j]) & 0xffff);
+	                
+					*p_out = FFT_CALC_BUTTERFLY(q, f, twiddle, shift);
+	                                
+	                fr[j] = out_data[3];
+	                fi[j] = out_data[2];
+	                fr[i] = out_data[1];
+	                fi[i] = out_data[0];
+	            }
             }
         }
         --k;

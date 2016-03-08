@@ -2,7 +2,6 @@
 #include "sinwave.h"
 #include <xtensa/tie/xt_booleans.h>
 #include <xtensa/tie/fft.h>
-#include "tie_defines.h"
 
 #define aligned_by_16 __attribute__ ((aligned(16)))
 
@@ -28,19 +27,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
     /* decimation in time - re-order data */
     for(m=1; m<=nn; ++m) 
     {
+       	mr = FFT_REVERSE_BITS(m, size);
     	
-#if FFT_TIE_FAST_BIT_REVERSAL 
-    	mr = FFT_REVERSE_BITS(m, size);
-#else
-    	l = n;
-    	do
-    	{
-    	    l >>= 1;
-    	} while(mr+l > nn);
-    	    	        
-    	mr = (mr & (l-1)) + l;
-#endif
-
         if(mr <= m) continue;
         
         // swap contents of memory (real part)
@@ -99,37 +87,13 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             
             // Calculate twiddle factor for this stage and stepwidth
             
-#if FFT_TIE_CALC_TWIDDLE_FACTORS
             fixed twiddle_out[2] aligned_by_16;
             int *twiddle_out_ptr = (int *)twiddle_out;
             
             *twiddle_out_ptr = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
-#else
-            wr =  Sinewave[j+N_WAVE/4];
-            wi = -Sinewave[j];
-            
-            if(inverse) wi = -wi;
-            if(shift)
-            {
-            	// simply, scaling of twiddle factors to ensure maximum arithmetic precision
-                wr >>= 1;
-                wi >>= 1;
-            }
-#endif
-            
-#if FFT_TIE_CALC_TWIDDLE_FACTORS && !FFT_TIE_BUTTERFLY_CALC
-            wr = twiddle_out[1];
-            wi = twiddle_out[0];
-#endif
-            
-#if FFT_TIE_BUTTERFLY_CALC && !FFT_TIE_CALC_TWIDDLE_FACTORS
-            int twiddle = ((wr << 16) | (wi & 0xffff));
-#endif
-    
-            // In this case we already have twiddle factors in the form wr&wi, so we dont need to do it manually again
-#if FFT_TIE_BUTTERFLY_CALC && FFT_TIE_CALC_TWIDDLE_FACTORS
+
+
             int twiddle = *twiddle_out_ptr;
-#endif
             
             // all butterfly compute node executions with one specific twiddle factor
             for(i=m; i<n; i = i+istep)
@@ -138,12 +102,9 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 
                 //// Implementation of FFT compute node (see task Fig.2)
                 
-                
 				// load even value (complex)
 				qr = fr[i];
 				qi = fi[i];
-                
-#if FFT_TIE_BUTTERFLY_CALC
 				
 				fixed out_data[4] aligned_by_16;
 				VR *p_out = (VR *)out_data;
@@ -157,29 +118,6 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 fi[j] = out_data[2];
                 fr[i] = out_data[1];
                 fi[i] = out_data[0];
-#else
-
-                fixed d = fix_mpy(wr, fr[j]);
-                fixed e = fix_mpy(wi, fi[j]);
-                fixed g = fix_mpy(wi, fr[j]);
-                fixed f = fix_mpy(wr, fi[j]);
-                
-                tr = d - e; // complex mult (real)
-                ti = f + g; // complex mult (imag)
-                
-				if (shift) {
-					// simply, scaling of even samples to match result of multiplication with scaled twiddle factor (scaling of twiddle factor before the loop)
-					qr >>= 1;
-					qi >>= 1;
-				}
-
-				// Summation in upper and lower FFT compute nodes (see task Fig.2)
-				
-				fr[j] = qr - tr;
-				fi[j] = qi - ti;
-				fr[i] = qr + tr;
-				fi[i] = qi + ti;
-#endif
             }
         }
         --k;

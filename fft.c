@@ -107,7 +107,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				qi = fi[i];
 				
 				fixed out_data[4] aligned_by_16;
-				VR *p_out = (VR *)out_data;
+				vec4x16 *p_out = (vec4x16 *)out_data;
 				
 				int q = ((qr << 16) | (qi & 0xffff));
 				int f = ((fr[j] << 16) | (fi[j]) & 0xffff);

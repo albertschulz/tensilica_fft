@@ -129,10 +129,10 @@ function [15:0] FixedMul ([15:0] a, [15:0] b)
 	assign FixedMul = d[30:15];
 }
 
-regfile VR 64 4 vrf
+regfile vec4x16 64 4 vrf
 
 // Upper 16 Bits:Real Part; lower 16 Bits are the imag part
-operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, in BR shift, out VR odd_even_out} {}
+operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, in BR shift, out vec4x16 odd_even_out} {}
 {
 	wire [15:0] wr 		= twiddle[31:16];
 	wire [15:0] wi 		= twiddle[15:0];

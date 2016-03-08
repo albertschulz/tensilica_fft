@@ -160,6 +160,13 @@ operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, in BR shift,
 	assign odd_even_out = {odd_out, even_out};
 }
 
+regfile vec2x64 128 2 v2rf
+
+operation FFT_CALC_2_BUTTERFLY {in vec even, in vec odd, in AR twiddle, in BR shift, out vec2x64 odd_even_out} {}
+{
+	assign odd_even_out = 256'b0;
+}
+
 schedule FFT_CALC_BUTTERFLY_sched {FFT_CALC_BUTTERFLY} 
 {
 	def odd_even_out 2;

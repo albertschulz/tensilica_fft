@@ -123,20 +123,20 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				vec4x16 *p_out3 = (vec4x16 *)out_data3;
 				vec4x16 *p_out4 = (vec4x16 *)out_data4;
 				
-				int q1 = ((qr1 << 16) | (qi1 & 0xffff));
-				int q2 = ((qr2 << 16) | (qi2 & 0xffff));
-				int q3 = ((qr3 << 16) | (qi3 & 0xffff));
-				int q4 = ((qr4 << 16) | (qi4 & 0xffff));
+				fixed q1[] aligned_by_16 = {qi1, qr1};
+				fixed q2[] aligned_by_16 = {qi2, qr2};
+				fixed q3[] aligned_by_16 = {qi3, qr3};
+				fixed q4[] aligned_by_16 = {qi4, qr4};
 				
-				int f1 = ((fr[j] << 16) | (fi[j]) & 0xffff);
-				int f2 = ((fr[j+2] << 16) | (fi[j+2]) & 0xffff);
-				int f3 = ((fr[j+4] << 16) | (fi[j+4]) & 0xffff);
-				int f4 = ((fr[j+6] << 16) | (fi[j+6]) & 0xffff);
+				fixed f1[] aligned_by_16 = {fi[j], fr[j]};
+				fixed f2[] aligned_by_16 = {fi[j+2], fr[j+2]};
+				fixed f3[] aligned_by_16 = {fi[j+4], fr[j+4]};
+				fixed f4[] aligned_by_16 = {fi[j+6], fr[j+6]};
                 
-				*p_out1 = FFT_CALC_BUTTERFLY(q1, f1, twiddle, shift);
-				*p_out2 = FFT_CALC_BUTTERFLY(q2, f2, twiddle, shift);
-				*p_out3 = FFT_CALC_BUTTERFLY(q3, f3, twiddle, shift);
-				*p_out4 = FFT_CALC_BUTTERFLY(q4, f4, twiddle, shift);
+				*p_out1 = FFT_CALC_BUTTERFLY(*(int *)q1, *(int *)f1, twiddle, shift);
+				*p_out2 = FFT_CALC_BUTTERFLY(*(int *)q2, *(int *)f2, twiddle, shift);
+				*p_out3 = FFT_CALC_BUTTERFLY(*(int *)q3, *(int *)f3, twiddle, shift);
+				*p_out4 = FFT_CALC_BUTTERFLY(*(int *)q4, *(int *)f4, twiddle, shift);
                                 
 				fr[j]   = out_data1[3];
 				fr[j+2] = out_data2[3];

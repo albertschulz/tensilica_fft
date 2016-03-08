@@ -113,50 +113,40 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				fixed qr4 = fr[i+6];
 				fixed qi4 = fi[i+6];
 				
-				fixed out_data1[4] aligned_by_16;
-				fixed out_data2[4] aligned_by_16;
-				fixed out_data3[4] aligned_by_16;
-				fixed out_data4[4] aligned_by_16;
+				fixed out_data1[8] aligned_by_16;
+				fixed out_data2[8] aligned_by_16;
 				
-				vec4x16 *p_out1 = (vec4x16 *)out_data1;
-				vec4x16 *p_out2 = (vec4x16 *)out_data2;
-				vec4x16 *p_out3 = (vec4x16 *)out_data3;
-				vec4x16 *p_out4 = (vec4x16 *)out_data4;
+				vect8x16 *p_out1 = (vect8x16 *)out_data1;
+				vect8x16 *p_out2 = (vect8x16 *)out_data2;
 				
-				fixed q1[] aligned_by_16 = {qi1, qr1};
-				fixed q2[] aligned_by_16 = {qi2, qr2};
-				fixed q3[] aligned_by_16 = {qi3, qr3};
-				fixed q4[] aligned_by_16 = {qi4, qr4};
+				fixed q_1[] aligned_by_16 = {qi2, qr2, qi1, qr1};
+				fixed q_2[] aligned_by_16 = {qi4, qr4, qi3, qr3};
 				
-				fixed f1[] aligned_by_16 = {fi[j], fr[j]};
-				fixed f2[] aligned_by_16 = {fi[j+2], fr[j+2]};
-				fixed f3[] aligned_by_16 = {fi[j+4], fr[j+4]};
-				fixed f4[] aligned_by_16 = {fi[j+6], fr[j+6]};
-                
-				*p_out1 = FFT_CALC_BUTTERFLY(*(int *)q1, *(int *)f1, twiddle, shift);
-				*p_out2 = FFT_CALC_BUTTERFLY(*(int *)q2, *(int *)f2, twiddle, shift);
-				*p_out3 = FFT_CALC_BUTTERFLY(*(int *)q3, *(int *)f3, twiddle, shift);
-				*p_out4 = FFT_CALC_BUTTERFLY(*(int *)q4, *(int *)f4, twiddle, shift);
+				fixed f_1[] aligned_by_16 = {fi[j+2], fr[j+2], fi[j], fr[j]};
+				fixed f_2[] aligned_by_16 = {fi[j+6], fr[j+6], fi[j+4], fr[j+4]};
+				
+				*p_out1 = FFT_CALC_2_BUTTERFLIES(*(vec4x16 *)q_1, *(vec4x16 *)f_1, twiddle, shift);
+				*p_out2 = FFT_CALC_2_BUTTERFLIES(*(vec4x16 *)q_2, *(vec4x16 *)f_2, twiddle, shift);
                                 
-				fr[j]   = out_data1[3];
-				fr[j+2] = out_data2[3];
-				fr[j+4] = out_data3[3];
-				fr[j+6] = out_data4[3];
+				fr[j]   = out_data1[7];
+				fr[j+2] = out_data1[3];
+				fr[j+4] = out_data2[7];
+				fr[j+6] = out_data2[3];
                 
-				fi[j]   = out_data1[2];
-				fi[j+2] = out_data2[2];
-				fi[j+4] = out_data3[2];
-				fi[j+6] = out_data4[2];
+				fi[j]   = out_data1[6];
+				fi[j+2] = out_data1[2];
+				fi[j+4] = out_data2[6];
+				fi[j+6] = out_data2[2];
                 
-                fr[i]   = out_data1[1];
-                fr[i+2] = out_data2[1];
-                fr[i+4] = out_data3[1];
-                fr[i+6] = out_data4[1];
+                fr[i]   = out_data1[5];
+                fr[i+2] = out_data1[1];
+                fr[i+4] = out_data2[5];
+                fr[i+6] = out_data2[1];
                 
-                fi[i]   = out_data1[0];
-                fi[i+2] = out_data2[0];
-                fi[i+4] = out_data3[0];
-                fi[i+6] = out_data4[0];
+                fi[i]   = out_data1[4];
+                fi[i+2] = out_data1[0];
+                fi[i+4] = out_data2[4];
+                fi[i+6] = out_data2[0];
             	
             }
             else {

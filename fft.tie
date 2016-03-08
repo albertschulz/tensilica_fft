@@ -131,8 +131,7 @@ function [15:0] FixedMul ([15:0] a, [15:0] b)
 
 regfile vec4x16 64 4 vrf
 
-// Upper 16 Bits:Real Part; lower 16 Bits are the imag part
-operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, in BR shift, out vec4x16 odd_even_out} {}
+function [63:0] calc_butterfly ([31:0] even, [31:0] odd, [31:0] twiddle, [0:0] shift)
 {
 	wire [15:0] wr 		= twiddle[31:16];
 	wire [15:0] wi 		= twiddle[15:0];
@@ -157,14 +156,22 @@ operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, in BR shift,
 	wire [31:0] even_out 		= {a, b};
 	wire [31:0] odd_out			= {c, d};
 	
-	assign odd_even_out = {odd_out, even_out};
+	assign calc_butterfly = {odd_out, even_out};
 }
 
-regfile vec2x64 128 2 v2rf
-
-operation FFT_CALC_2_BUTTERFLY {in vec even, in vec odd, in AR twiddle, in BR shift, out vec2x64 odd_even_out} {}
+// Upper 16 Bits:Real Part; lower 16 Bits are the imag part
+operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, in BR shift, out vec4x16 odd_even_out} {}
 {
-	assign odd_even_out = 256'b0;
+	assign odd_even_out = calc_butterfly(even, odd, twiddle, shift);
+}
+
+regfile vect8x16 128 8 v2rf
+
+operation FFT_CALC_2_BUTTERFLIES {in vec4x16 even, in vec4x16 odd, in AR twiddle, in BR shift, out vect8x16 odd_even_out} {}
+{
+	wire [63:0] result1 = calc_butterfly(even[63:32], odd[63:32], twiddle, shift);
+	wire [63:0] result2 = calc_butterfly(even[31:0], odd[31:0], twiddle, shift);
+	assign odd_even_out = {result1, result2};
 }
 
 schedule FFT_CALC_BUTTERFLY_sched {FFT_CALC_BUTTERFLY} 

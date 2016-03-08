@@ -7,9 +7,8 @@
 #define NumberOfPoints       (1<<M)
 
 fixed real[NumberOfPoints], imag[NumberOfPoints];
-//fixed real_ref[NumberOfPoints] = {995,705,-1,-704,-997,-707,-1,702};
-fixed  real_ref[NumberOfPoints], imag_ref[NumberOfPoints];
 
+fixed  real_ref[NumberOfPoints], imag_ref[NumberOfPoints];
 
 
 // modules for compating results: squaredError() and generateInputDataRef()
@@ -31,7 +30,6 @@ void generateInputDataRef()
     {
         real_ref[i] = 1000*cos(i*2*3.1415926535/NumberOfPoints);
         imag_ref[i] = 0;
-
     }
 }
 

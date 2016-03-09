@@ -103,13 +103,13 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 
                 //// Implementation of FFT compute node (see task Fig.2)
 
-				LOAD_REAL(&fr[i]);
-				LOAD_IMAG(&fi[i]);
+				LOAD_REAL(fr, i);
+				LOAD_IMAG(fi, i);
 				
 				FFT_CALC_2_BUTTERFLIES_FROM_STATES_x4(twiddle, shift);
 
-                STORE_REAL(&fr[i]);
-                STORE_IMAG(&fi[i]);
+                STORE_REAL(fr, i);
+                STORE_IMAG(fi, i);
             }
             else {
 	            // all butterfly compute node executions with one specific twiddle factor

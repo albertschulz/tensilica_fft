@@ -186,9 +186,9 @@ operation FFT_CALC_2_BUTTERFLIES_FROM_STATES_x4 {in AR twiddle, in BR shift} {in
 	assign BUTTERFLY_RESULTS = {result1, result2, result3, result4};
 }
 
-operation STORE_REAL {in AR *addr}{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
+operation STORE_REAL {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
 {
-	assign VAddr = addr;
+	assign VAddr = addr + offset;
 	
 	wire [63:0] result1 = BUTTERFLY_RESULTS[255:192];
 	wire [63:0] result2 = BUTTERFLY_RESULTS[191:128];
@@ -213,9 +213,9 @@ operation STORE_REAL {in AR *addr}{out VAddr, out MemDataOut128, in BUTTERFLY_RE
 							result1_odd_real, result1_even_real};
 }
 
-operation STORE_IMAG {in AR *addr}{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
+operation STORE_IMAG {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
 {
-	assign VAddr = addr;
+	assign VAddr = addr + offset;
 	
 	wire [63:0] result1 = BUTTERFLY_RESULTS[255:192];
 	wire [63:0] result2 = BUTTERFLY_RESULTS[191:128];
@@ -250,9 +250,9 @@ state FR 64 64'b0 add_read_write
 state QI 64 64'b0 add_read_write
 state FI 64 64'b0 add_read_write
 
-operation LOAD_REAL {in AR *addr}{out VAddr, in MemDataIn128, out QR, out FR}
+operation LOAD_REAL {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out QR, out FR}
 {
-	assign VAddr =  addr;
+	assign VAddr =  addr + offset;
 	wire [15:0]FR4 = MemDataIn128[127:112];
 	wire [15:0]FR3 = MemDataIn128[95:80];
 	wire [15:0]FR2 = MemDataIn128[63:48];
@@ -266,9 +266,9 @@ operation LOAD_REAL {in AR *addr}{out VAddr, in MemDataIn128, out QR, out FR}
 	assign QR = {QR1, QR2, QR3, QR4};
 }
 
-operation LOAD_IMAG {in AR *addr}{out VAddr, in MemDataIn128, out QI, out FI}
+operation LOAD_IMAG {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out QI, out FI}
 {
-	assign VAddr =  addr;
+	assign VAddr =  addr + offset;
 	wire [15:0]FI4 = MemDataIn128[127:112];
 	wire [15:0]FI3 = MemDataIn128[95:80];
 	wire [15:0]FI2 = MemDataIn128[63:48];

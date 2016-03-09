@@ -131,30 +131,38 @@ function [15:0] FixedMul ([15:0] a, [15:0] b)
 
 regfile vec4x16 64 4 vrf
 
+function [15:0] real ([31:0] value)
+{
+	assign real = value[31:16];
+}
+
+function [15:0] imag ([31:0] value)
+{
+	assign imag = value[15:0];
+}
+
 function [63:0] calc_butterfly ([31:0] even, [31:0] odd, [31:0] twiddle, [0:0] shift)
 {
-	wire [15:0] wr 		= twiddle[31:16];
-	wire [15:0] wi 		= twiddle[15:0];
-	wire [15:0] fr_j 	= odd[31:16];
-	wire [15:0] fi_j 	= odd[15:0];
-	wire [15:0] qr		= TIEmux(shift, even[31:16], {1{even[31]}, even[31:17]});
-	wire [15:0] qi		= TIEmux(shift, even[15:0], {1{even[15]}, even[15:1]});
+	wire [15:0] wr 		= real(twiddle);
+	wire [15:0] wi 		= imag(twiddle);
+	wire [15:0] even_r	= TIEmux(shift, real(even), {1{even[31]}, even[31:17]});
+	wire [15:0] even_i	= TIEmux(shift, imag(even), {1{even[15]}, even[15:1]});
 	
-	wire [15:0] oddr_wr = FixedMul(wr, fr_j);
-	wire [15:0] oddi_wi = FixedMul(wi, fi_j);
-	wire [15:0] tr 		= FixedSub(oddr_wr, oddi_wi);
+	wire [15:0] odd_r_wr	= FixedMul(wr, real(odd));
+	wire [15:0] odd_i_wi	= FixedMul(wi, imag(odd));
+	wire [15:0] temp_r		= FixedSub(odd_r_wr, odd_i_wi);
 	
-	wire [15:0] oddr_wi = FixedMul(fr_j, wi);
-	wire [15:0] oddi_wr = FixedMul(fi_j, wr);
-	wire [15:0] ti 		= TIEadd(oddr_wi, oddi_wr, 1'b0);
+	wire [15:0] odd_r_wi = FixedMul(real(odd), wi);
+	wire [15:0] odd_i_wr = FixedMul(imag(odd), wr);
+	wire [15:0] temp_i 	= TIEadd(odd_r_wi, odd_i_wr, 1'b0);
 	
-	wire [15:0] a = TIEadd( qr, tr, 1'b0);
-	wire [15:0] b = TIEadd( qi, ti, 1'b0);
-	wire [15:0] c = FixedSub(qr, tr); 
-	wire [15:0] d = FixedSub(qi, ti); 
+	wire [15:0] even_out_r = TIEadd( even_r, temp_r, 1'b0);
+	wire [15:0] even_out_i = TIEadd( even_i, temp_i, 1'b0);
+	wire [15:0] odd_out_r  = FixedSub(even_r, temp_r); 
+	wire [15:0] odd_out_i  = FixedSub(even_i, temp_i); 
 	
-	wire [31:0] even_out 		= {a, b};
-	wire [31:0] odd_out			= {c, d};
+	wire [31:0] even_out 		= {even_out_r, even_out_i};
+	wire [31:0] odd_out			= {odd_out_r, odd_out_i};
 	
 	assign calc_butterfly = {odd_out, even_out};
 }
@@ -169,6 +177,7 @@ regfile vect8x16 128 8 v2rf
 
 operation FFT_CALC_2_BUTTERFLIES {in vec4x16 even, in vec4x16 odd, in AR twiddle, in BR shift, out vect8x16 odd_even_out} {}
 {
+	// result = {odd, even}
 	wire [63:0] result1 = calc_butterfly(even[63:32], odd[63:32], twiddle, shift);
 	wire [63:0] result2 = calc_butterfly(even[31:0], odd[31:0], twiddle, shift);
 	assign odd_even_out = {result1, result2};
@@ -176,8 +185,9 @@ operation FFT_CALC_2_BUTTERFLIES {in vec4x16 even, in vec4x16 odd, in AR twiddle
 
 state BUTTERFLY_RESULTS 256 256'b0 add_read_write
 
-operation FFT_CALC_2_BUTTERFLIES_FROM_STATES_x4 {in AR twiddle, in BR shift} {in QR, in FR, in QI, in FI, out BUTTERFLY_RESULTS}
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES {in AR twiddle, in BR shift} {in QR, in FR, in QI, in FI, out BUTTERFLY_RESULTS}
 {
+	// result = {odd, even}
 	wire [63:0] result1 = calc_butterfly({QR[63:48],QI[63:48]}, {FR[63:48],FI[63:48]}, twiddle, shift);
 	wire [63:0] result2 = calc_butterfly({QR[47:32],QI[47:32]}, {FR[47:32],FI[47:32]}, twiddle, shift);
 	wire [63:0] result3 = calc_butterfly({QR[31:16],QI[31:16]}, {FR[31:16],FI[31:16]}, twiddle, shift);
@@ -190,6 +200,7 @@ operation STORE_REAL {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, i
 {
 	assign VAddr = addr + {offset[30:0], 1'b0};
 	
+	// result = {odd, even}
 	wire [63:0] result1 = BUTTERFLY_RESULTS[255:192];
 	wire [63:0] result2 = BUTTERFLY_RESULTS[191:128];
 	wire [63:0] result3 = BUTTERFLY_RESULTS[127:64];
@@ -217,6 +228,7 @@ operation STORE_IMAG {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, i
 {
 	assign VAddr = addr + {offset[30:0], 1'b0};
 	
+	// result = {odd, even}
 	wire [63:0] result1 = BUTTERFLY_RESULTS[255:192];
 	wire [63:0] result2 = BUTTERFLY_RESULTS[191:128];
 	wire [63:0] result3 = BUTTERFLY_RESULTS[127:64];

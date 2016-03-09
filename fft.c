@@ -106,7 +106,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 					LOAD_REAL(fr, i);
 					LOAD_IMAG(fi, i);
 					
-					FFT_CALC_2_BUTTERFLIES_FROM_STATES_x4(twiddle, shift);
+					FFT_CALC_4_BUTTERFLIES_FROM_STATES(twiddle, shift);
 
 	                STORE_REAL(fr, i);
 	                STORE_IMAG(fi, i);

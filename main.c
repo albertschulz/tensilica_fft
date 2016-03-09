@@ -85,6 +85,10 @@ int main()
     fix_fft(real, imag, M, 1);
     fix_fft_ref(real_ref, imag_ref, M, 1);
     
+    
+    printf("\nIFFT (refernce)\n");
+    printData(real_ref, imag_ref, NumberOfPoints);
+    
     printf("\nIFFT\n");
     printData(real, imag, NumberOfPoints);
     

@@ -3,8 +3,8 @@
 #include		"fixed.h"
 #include 		"fft.h"
 
-#define M       3
-#define NumberOfPoints       (1<<M)
+#define M       4
+#define NumberOfPoints       (1<<M) // 2^M
 
 fixed real[NumberOfPoints] __attribute__ ((section(".dram0.data")));
 fixed imag[NumberOfPoints] __attribute__ ((section(".dram1.data")));
@@ -42,7 +42,6 @@ void generateInputData()
     {
         real[i] = 1000*cos(i*2*3.1415926535/NumberOfPoints);
         imag[i] = 0;
-
     }
 }
 

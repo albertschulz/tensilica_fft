@@ -293,3 +293,8 @@ operation LOAD_IMAG {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out 
 	wire [15:0]QI1 = MemDataIn128[15:0];
 	assign QI = {QI1, QI2, QI3, QI4};
 }
+
+format flix64 64 {slot_0, slot_1, slot_2}
+slot_opcodes slot_0 {LOAD_REAL, STORE_REAL, LOAD_IMAG, STORE_IMAG}
+slot_opcodes slot_1 {NOP}
+slot_opcodes slot_2 {LOAD_REAL, STORE_REAL, LOAD_IMAG, STORE_IMAG}

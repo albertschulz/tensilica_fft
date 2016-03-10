@@ -137,15 +137,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             /* 0 <= j < N_WAVE/2 */
             
             // Calculate twiddle factor for this stage and stepwidth
-            
-            fixed twiddle_out[2] aligned_by_4;
-            int *twiddle_out_ptr = (int *)twiddle_out;
-            
-            *twiddle_out_ptr = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
+            fixed_complex twiddle = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
 
-
-            int twiddle = *twiddle_out_ptr;
-            
             if (istep == 2) 
             {}
             else {

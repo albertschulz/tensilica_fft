@@ -4,6 +4,7 @@
 #include <xtensa/tie/fft.h>
 
 #define aligned_by_16 __attribute__ ((aligned(16)))
+#define aligned_by_8 __attribute__ ((aligned(8)))
 #define aligned_by_4 __attribute__ ((aligned(4)))
 #define fixed_complex int
 
@@ -119,8 +120,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	fixed_complex tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
         	fixed_complex tw2 = FFT_CALC_TWIDDLE_FACTOR(j2, inverse, shift);
         	        	
-        	// Butterfly Berechnung mit 2 Twiddle Faktoren
-        	for (i=0; i<n; i = i+8) // TODO 2: Schleife bzgl. istep entrollen für weitere Parallelisierung
+        	// Butterfly Berechnung mit 2 verschiedenen Twiddle Faktoren
+        	for (i=0; i<n; i = i+8)
         	{
         		int i1 = i;
         		int i2 = i+1;
@@ -144,16 +145,6 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				fixed qi3 = fi[i3];
 				fixed qi4 = fi[i4];
 				
-				fixed out_data1[4] aligned_by_16;
-				fixed out_data2[4] aligned_by_16;
-				fixed out_data3[4] aligned_by_16;
-				fixed out_data4[4] aligned_by_16;
-				
-				vec4x16 *p_out1 = (vec4x16 *)out_data1;
-				vec4x16 *p_out2 = (vec4x16 *)out_data2;
-				vec4x16 *p_out3 = (vec4x16 *)out_data3;
-				vec4x16 *p_out4 = (vec4x16 *)out_data4;
-				
 				int q1 = ((qr1 << 16) | (qi1 & 0xffff));
 				int q2 = ((qr2 << 16) | (qi2 & 0xffff));
 				int q3 = ((qr3 << 16) | (qi3 & 0xffff));
@@ -163,32 +154,44 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				int f2 = ((fr[j2] << 16) | (fi[j2]) & 0xffff);
 				int f3 = ((fr[j3] << 16) | (fi[j3]) & 0xffff);
 				int f4 = ((fr[j4] << 16) | (fi[j4]) & 0xffff);
-                
-				// TODO 1: 2 Butterflies mit 2 Twiddle Faktoren zusammenfassen
-				*p_out1 = FFT_CALC_BUTTERFLY(q1, f1, tw1, shift);
-				*p_out2 = FFT_CALC_BUTTERFLY(q2, f2, tw2, shift);
-				*p_out3 = FFT_CALC_BUTTERFLY(q3, f3, tw1, shift);
-				*p_out4 = FFT_CALC_BUTTERFLY(q4, f4, tw2, shift);
+                				
+				int input_q_1[2] aligned_by_8 = {q1, q3};
+				int input_f_1[2] aligned_by_8 = {f1, f3};
+				int input_q_2[2] aligned_by_8 = {q2, q4};
+				int input_f_2[2] aligned_by_8 = {f2, f4};
+				
+				fixed out_data5[8] aligned_by_16;
+				fixed out_data6[8] aligned_by_16;
+				vect8x16 *p_out5 = (vect8x16 *)out_data5;
+				vect8x16 *p_out6 = (vect8x16 *)out_data6;
+				
+				vec4x16 *input_q_1_vector = (vec4x16 *)input_q_1;
+				vec4x16 *input_f_1_vector = (vec4x16 *)input_f_1;
+				vec4x16 *input_q_2_vector = (vec4x16 *)input_q_2;
+				vec4x16 *input_f_2_vector = (vec4x16 *)input_f_2;
+				
+				*p_out5 = FFT_CALC_2_BUTTERFLIES(*input_q_1_vector, *input_f_1_vector, tw1, shift);
+				*p_out6 = FFT_CALC_2_BUTTERFLIES(*input_q_2_vector, *input_f_2_vector, tw2, shift);
                                 
-                fr[j1] = out_data1[3];
-                fi[j1] = out_data1[2];
-                fr[i1] = out_data1[1];
-                fi[i1] = out_data1[0];
+                fr[j1] = out_data5[3];
+                fi[j1] = out_data5[2];
+                fr[i1] = out_data5[1];
+                fi[i1] = out_data5[0];
                 
-                fr[j2] = out_data2[3];
-                fi[j2] = out_data2[2];
-                fr[i2] = out_data2[1];
-                fi[i2] = out_data2[0];
+                fr[j2] = out_data6[3];
+                fi[j2] = out_data6[2];
+                fr[i2] = out_data6[1];
+                fi[i2] = out_data6[0];
                 
-                fr[j3] = out_data3[3];
-                fi[j3] = out_data3[2];
-                fr[i3] = out_data3[1];
-                fi[i3] = out_data3[0];
+                fr[j3] = out_data5[7];
+                fi[j3] = out_data5[6];
+                fr[i3] = out_data5[5];
+                fi[i3] = out_data5[4];
                 
-                fr[j4] = out_data4[3];
-                fi[j4] = out_data4[2];
-                fr[i4] = out_data4[1];
-                fi[i4] = out_data4[0];
+                fr[j4] = out_data6[7];
+                fi[j4] = out_data6[6];
+                fr[i4] = out_data6[5];
+                fi[i4] = out_data6[4];
         	}
         	
         	// Werte speichern

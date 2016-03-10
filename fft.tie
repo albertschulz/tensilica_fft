@@ -175,11 +175,18 @@ operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, in BR shift,
 
 regfile vect8x16 128 8 v2rf
 
-operation FFT_CALC_2_BUTTERFLIES {in vec4x16 even, in vec4x16 odd, in AR twiddle, in BR shift, out vect8x16 odd_even_out} {}
+operation FFT_CALC_2_BUTTERFLIES {in vec4x16 even, in vec4x16 odd, in AR tw, in BR shift, out vect8x16 odd_even_out} {}
 {
+	wire [31:0] even1 	= even[63:32];
+	wire [31:0] even2 	= even[31:0];
+	
+	wire [31:0] odd1	= odd[63:32];
+	wire [31:0] odd2	= odd[31:0];
+	
 	// result = {odd, even}
-	wire [63:0] result1 = calc_butterfly(even[63:32], odd[63:32], twiddle, shift);
-	wire [63:0] result2 = calc_butterfly(even[31:0], odd[31:0], twiddle, shift);
+	wire [63:0] result1 = calc_butterfly(even1, odd1, tw, shift);
+	wire [63:0] result2 = calc_butterfly(even2, odd2, tw, shift);
+	
 	assign odd_even_out = {result1, result2};
 }
 

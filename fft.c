@@ -120,36 +120,55 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	fixed_complex tw2 = FFT_CALC_TWIDDLE_FACTOR(j2, inverse, shift);
         	        	
         	// Butterfly Berechnung mit 2 Twiddle Faktoren
-        	for (i=0; i<n; i = i+istep)
+        	for (i=0; i<n; i = i+8) // TODO 2: Schleife bzgl. istep entrollen für weitere Parallelisierung
         	{
         		int i1 = i;
         		int i2 = i+1;
+        		int i3 = i+4;
+        		int i4 = i+5;
         		
         		int j1 = i1 + l;
         		int j2 = i2 + l;
+        		int j3 = i3 + l;
+        		int j4 = i4 + l;
         
                 //// Implementation of FFT compute node (see task Fig.2)
 
 				fixed qr1 = fr[i1];
 				fixed qr2 = fr[i2];
+				fixed qr3 = fr[i3];
+				fixed qr4 = fr[i4];
 
 				fixed qi1 = fi[i1];
 				fixed qi2 = fi[i2];
+				fixed qi3 = fi[i3];
+				fixed qi4 = fi[i4];
 				
 				fixed out_data1[4] aligned_by_16;
 				fixed out_data2[4] aligned_by_16;
+				fixed out_data3[4] aligned_by_16;
+				fixed out_data4[4] aligned_by_16;
 				
 				vec4x16 *p_out1 = (vec4x16 *)out_data1;
 				vec4x16 *p_out2 = (vec4x16 *)out_data2;
+				vec4x16 *p_out3 = (vec4x16 *)out_data3;
+				vec4x16 *p_out4 = (vec4x16 *)out_data4;
 				
 				int q1 = ((qr1 << 16) | (qi1 & 0xffff));
 				int q2 = ((qr2 << 16) | (qi2 & 0xffff));
+				int q3 = ((qr3 << 16) | (qi3 & 0xffff));
+				int q4 = ((qr4 << 16) | (qi4 & 0xffff));
 				
 				int f1 = ((fr[j1] << 16) | (fi[j1]) & 0xffff);
 				int f2 = ((fr[j2] << 16) | (fi[j2]) & 0xffff);
+				int f3 = ((fr[j3] << 16) | (fi[j3]) & 0xffff);
+				int f4 = ((fr[j4] << 16) | (fi[j4]) & 0xffff);
                 
+				// TODO 1: 2 Butterflies mit 2 Twiddle Faktoren zusammenfassen
 				*p_out1 = FFT_CALC_BUTTERFLY(q1, f1, tw1, shift);
 				*p_out2 = FFT_CALC_BUTTERFLY(q2, f2, tw2, shift);
+				*p_out3 = FFT_CALC_BUTTERFLY(q3, f3, tw1, shift);
+				*p_out4 = FFT_CALC_BUTTERFLY(q4, f4, tw2, shift);
                                 
                 fr[j1] = out_data1[3];
                 fi[j1] = out_data1[2];
@@ -160,6 +179,16 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 fi[j2] = out_data2[2];
                 fr[i2] = out_data2[1];
                 fi[i2] = out_data2[0];
+                
+                fr[j3] = out_data3[3];
+                fi[j3] = out_data3[2];
+                fr[i3] = out_data3[1];
+                fi[i3] = out_data3[0];
+                
+                fr[j4] = out_data4[3];
+                fi[j4] = out_data4[2];
+                fr[i4] = out_data4[1];
+                fi[i4] = out_data4[0];
         	}
         	
         	// Werte speichern
@@ -181,9 +210,6 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         // for each twiddle factor all butterfly nodes are computed (in inner for loop)
         for(m=0; m<l; ++m)
         {
-        	// m = 1 >> j = 1 * (2^8)
-        	// m = 2 >> j = 2 * (2^8)
-        	
             j = m << k; // j = m * (2^k)
             /* 0 <= j < N_WAVE/2 */
             

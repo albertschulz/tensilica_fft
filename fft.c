@@ -124,74 +124,21 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	for (i=0; i<n; i = i+8)
         	{
                 //// Implementation of FFT compute node (see task Fig.2)
-
-				fixed qr1 = fr[i];
-				fixed qr2 = fr[i+1];
-				fixed fr1 = fr[i+2];
-				fixed fr2 = fr[i+3];
-				fixed qr3 = fr[i+4];
-				fixed qr4 = fr[i+5];
-				fixed fr3 = fr[i+6];
-				fixed fr4 = fr[i+7];
-				
-				fixed qi1 = fi[i];
-				fixed qi2 = fi[i+1];
-				fixed fi1 = fi[i+2];
-				fixed fi2 = fi[i+3];
-				fixed qi3 = fi[i+4];
-				fixed qi4 = fi[i+5];
-				fixed fi3 = fi[i+6];
-				fixed fi4 = fi[i+7];
-                				
-				fixed input_q_1[4] aligned_by_8 = {qi1, qr1, qi3, qr3};
-				fixed input_f_1[4] aligned_by_8 = {fi1, fr1, fi3, fr3};
-				fixed input_q_2[4] aligned_by_8 = {qi2, qr2, qi4, qr4};
-				fixed input_f_2[4] aligned_by_8 = {fi2, fr2, fi4, fr4};
-				
-				fixed out_data5[8] aligned_by_16;
-				fixed out_data6[8] aligned_by_16;
-				vect8x16 *p_out5 = (vect8x16 *)out_data5;
-				vect8x16 *p_out6 = (vect8x16 *)out_data6;
-				
-				vec4x16 *input_q_1_vector = (vec4x16 *)input_q_1;
-				vec4x16 *input_f_1_vector = (vec4x16 *)input_f_1;
-				vec4x16 *input_q_2_vector = (vec4x16 *)input_q_2;
-				vec4x16 *input_f_2_vector = (vec4x16 *)input_f_2;
 				
 				// Alle Daten aus Speicher laden, und shufflen
 				FFT_SHUFFLE_READ_REAL(fr, i);
 				FFT_SHUFFLE_READ_IMAG(fi, i);
 				
-				
-				*p_out5 = FFT_CALC_2_BUTTERFLIES(*input_q_1_vector, *input_f_1_vector, tw1, shift);
-				*p_out6 = FFT_CALC_2_BUTTERFLIES(*input_q_2_vector, *input_f_2_vector, tw2, shift);
-				
-				// TODO: Butterfly Berechnung aus States mit unterschiedlichen Twiddle Faktoren
+				// Butterfly Berechnung aus States mit unterschiedlichen Twiddle Faktoren
 				
 				int twiddle_array[2] aligned_by_4 = {tw2, tw1};
 				vec4x16 *twiddle_array_ptr = (vec4x16 *)twiddle_array;
 				
 				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2(*twiddle_array_ptr, shift);
                 
-				fr[i] 	= out_data5[3];
-				fr[i+1] = out_data6[3];
-                fr[i+2] = out_data5[1];
-                fr[i+3] = out_data6[1];
-                fr[i+4] = out_data5[7];
-                fr[i+5] = out_data6[7];
-                fr[i+6] = out_data5[5];
-                fr[i+7] = out_data6[5];
-                
-                fi[i] 	= out_data5[2];
-                fi[i+1] = out_data6[2];
-                fi[i+2] = out_data5[0];
-                fi[i+3] = out_data6[0];
-                fi[i+4] = out_data5[6];
-                fi[i+5] = out_data6[6];
-                fi[i+6] = out_data5[4];
-                fi[i+7] = out_data6[4];
-                
                 // Werte speichern
+                FFT_SHUFFLE_STORE_REAL(fr, i);
+                FFT_SHUFFLE_STORE_IMAG(fi, i);
         	}
         }
         else if (istep == 8)

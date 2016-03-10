@@ -321,10 +321,14 @@ operation STORE_REAL {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, i
 	wire [15:0] result4_odd_real	= result4[31:16];
 	
 	// ! Always be careful when reading/writing to memory, it is in reverse order
-	assign MemDataOut128 = {result4_odd_real, result4_even_real,
-							result3_odd_real, result3_even_real,
-							result2_odd_real, result2_even_real,
-							result1_odd_real, result1_even_real};
+	assign MemDataOut128 = reverse_2_byte_wise(
+								{	
+									result1_even_real, result1_odd_real,
+									result2_even_real, result2_odd_real,
+									result3_even_real, result3_odd_real,
+									result4_even_real, result4_odd_real
+								}
+							);
 }
 
 operation STORE_IMAG {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
@@ -350,10 +354,14 @@ operation STORE_IMAG {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, i
 	wire [15:0] result4_odd_imag	= result4[15:0];
 	
 	// ! Always be careful when reading/writing to memory, it is in reverse order
-	assign MemDataOut128 = {result4_odd_imag, result4_even_imag,
-							result3_odd_imag, result3_even_imag,
-							result2_odd_imag, result2_even_imag,
-							result1_odd_imag, result1_even_imag};
+	assign MemDataOut128 = reverse_2_byte_wise(
+								{	
+									result1_even_imag, result1_odd_imag,
+									result2_even_imag, result2_odd_imag,
+									result3_even_imag, result3_odd_imag,
+									result4_even_imag, result4_odd_imag
+								}
+							);
 }
 
 state DataReal 128 128'b0 add_read_write
@@ -388,6 +396,23 @@ slot_opcodes slot_0 {LOAD_REAL, STORE_REAL, LOAD_IMAG, STORE_IMAG}
 slot_opcodes slot_1 {NOP}
 slot_opcodes slot_2 {LOAD_REAL, STORE_REAL, LOAD_IMAG, STORE_IMAG}
 
+// !!!
+// Always be careful when reading/writing to memory, it is in reverse order
+// Use this method for easy reversal
+function [127:0] reverse_2_byte_wise ([127:0] data)
+{
+	wire [15:0] v1 = data[127:112];
+	wire [15:0] v2 = data[111:96];
+	wire [15:0] v3 = data[95:80];
+	wire [15:0] v4 = data[79:64];
+	wire [15:0] v5 = data[63:48];
+	wire [15:0] v6 = data[47:32];
+	wire [15:0] v7 = data[31:16];
+	wire [15:0] v8 = data[15:0];
+	
+	assign reverse_2_byte_wise = {v8, v7, v6, v5, v4, v3, v2, v1};
+}
+
 function [127:0] shuffle8x16 ([127:0] vector8x16)
 {
 	wire [15:0] v1 = vector8x16[127:112];
@@ -399,19 +424,18 @@ function [127:0] shuffle8x16 ([127:0] vector8x16)
 	wire [15:0] v7 = vector8x16[31:16];
 	wire [15:0] v8 = vector8x16[15:0];
 	
-	// ! Always be careful when reading/writing to memory, it is in reverse order
-	assign shuffle8x16 = {v8, v6, v4, v2, v7, v5, v3, v1};
+	assign shuffle8x16 = {v1, v3, v5, v7, v2, v4, v6, v8};
 }
 
 operation FFT_SHUFFLE_READ_REAL {in AR *addr, in AR offset} {out VAddr, in MemDataIn128, out DataReal}
 {
 	assign VAddr =  addr + {offset[30:0], 1'b0};
-	assign DataReal = shuffle8x16(MemDataIn128);
+	assign DataReal = shuffle8x16(reverse_2_byte_wise(MemDataIn128));
 }
 
 operation FFT_SHUFFLE_READ_IMAG {in AR *addr, in AR offset} {out VAddr, in MemDataIn128, out DataImag}
 {
 	assign VAddr =  addr + {offset[30:0], 1'b0};
-	assign DataImag = shuffle8x16(MemDataIn128);
+	assign DataImag = shuffle8x16(reverse_2_byte_wise(MemDataIn128));
 }
  

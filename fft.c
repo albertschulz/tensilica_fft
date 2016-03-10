@@ -4,6 +4,8 @@
 #include <xtensa/tie/fft.h>
 
 #define aligned_by_16 __attribute__ ((aligned(16)))
+#define aligned_by_4 __attribute__ ((aligned(4)))
+#define fixed_complex int
 
 int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 {
@@ -79,6 +81,55 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
            on each data point exactly once, during this pass. */
         istep = l << 1;		//step width of current butterfly
         
+        
+        
+        if (istep == 2)
+        {
+        	int m = 0;
+        	
+        	j = m << k; // j = m * (2^k)
+                        
+        	fixed_complex twiddle = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
+            
+        	for (i=m; i<n; i = i+8)
+        	{
+        		j = i + l;
+        		                
+                //// Implementation of FFT compute node (see task Fig.2)
+
+				LOAD_REAL(fr, i);
+				LOAD_IMAG(fi, i);
+				
+				FFT_CALC_4_BUTTERFLIES_FROM_STATES(twiddle, shift);
+
+                STORE_REAL(fr, i);
+                STORE_IMAG(fi, i);
+        	}
+        }
+        if (istep == 4) 
+        {
+        	// Werte umsortieren
+        	
+        	// 2 Twiddle Faktoren berechnen
+        	
+        	// Butterfly Berechnung mit 2 Twiddle Faktoren
+        	
+        	// Werte speichern
+        }
+        else if (istep == 8)
+        {
+        	// Werte umsortieren
+        	
+        	// 4 Twiddle Faktoren berechnen
+        	
+        	// Butterfly Berechnung mit 4 versch. Twiddle Faktoren
+        	
+        	// Werte speichern
+        }
+        
+        // Werte in RAM ablegen (evtl. außerhalb der Schleife)
+        
+        
         // for each twiddle factor all butterfly nodes are computed (in inner for loop)
         for(m=0; m<l; ++m)
         {
@@ -87,7 +138,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             
             // Calculate twiddle factor for this stage and stepwidth
             
-            fixed twiddle_out[2] aligned_by_16;
+            fixed twiddle_out[2] aligned_by_4;
             int *twiddle_out_ptr = (int *)twiddle_out;
             
             *twiddle_out_ptr = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
@@ -96,22 +147,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             int twiddle = *twiddle_out_ptr;
             
             if (istep == 2) 
-            {
-            	for (i=m; i<n; i = i+(istep*4))
-            	{
-            		j = i + l;
-            		                
-	                //// Implementation of FFT compute node (see task Fig.2)
-
-					LOAD_REAL(fr, i);
-					LOAD_IMAG(fi, i);
-					
-					FFT_CALC_4_BUTTERFLIES_FROM_STATES(twiddle, shift);
-
-	                STORE_REAL(fr, i);
-	                STORE_IMAG(fi, i);
-            	}
-            }
+            {}
             else {
 	            // all butterfly compute node executions with one specific twiddle factor
 	            for(i=m; i<n; i = i+istep)

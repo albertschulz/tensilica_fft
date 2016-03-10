@@ -79,7 +79,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
-        istep = l << 1;		//step width of current butterfly
+        istep = l << 1; // (2^L)		//step width of current butterfly
         
         
         
@@ -110,9 +110,57 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         {
         	// Werte umsortieren
         	
-        	// 2 Twiddle Faktoren berechnen
+        	// Alles für 2 Werte für m: 0, 1
         	
+        	// 2 Twiddle Faktoren berechnen
+        	int j1 = 0 << k; // m=0
+        	int j2 = 1 << k; // m=1
+        	                        
+        	fixed_complex tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
+        	fixed_complex tw2 = FFT_CALC_TWIDDLE_FACTOR(j2, inverse, shift);
+        	        	
         	// Butterfly Berechnung mit 2 Twiddle Faktoren
+        	for (i=0; i<n; i = i+istep)
+        	{
+        		int i1 = i;
+        		int i2 = i+1;
+        		
+        		int j1 = i1 + l;
+        		int j2 = i2 + l;
+        
+                //// Implementation of FFT compute node (see task Fig.2)
+
+				fixed qr1 = fr[i1];
+				fixed qr2 = fr[i2];
+
+				fixed qi1 = fi[i1];
+				fixed qi2 = fi[i2];
+				
+				fixed out_data1[4] aligned_by_16;
+				fixed out_data2[4] aligned_by_16;
+				
+				vec4x16 *p_out1 = (vec4x16 *)out_data1;
+				vec4x16 *p_out2 = (vec4x16 *)out_data2;
+				
+				int q1 = ((qr1 << 16) | (qi1 & 0xffff));
+				int q2 = ((qr2 << 16) | (qi2 & 0xffff));
+				
+				int f1 = ((fr[j1] << 16) | (fi[j1]) & 0xffff);
+				int f2 = ((fr[j2] << 16) | (fi[j2]) & 0xffff);
+                
+				*p_out1 = FFT_CALC_BUTTERFLY(q1, f1, tw1, shift);
+				*p_out2 = FFT_CALC_BUTTERFLY(q2, f2, tw2, shift);
+                                
+                fr[j1] = out_data1[3];
+                fi[j1] = out_data1[2];
+                fr[i1] = out_data1[1];
+                fi[i1] = out_data1[0];
+                
+                fr[j2] = out_data2[3];
+                fi[j2] = out_data2[2];
+                fr[i2] = out_data2[1];
+                fi[i2] = out_data2[0];
+        	}
         	
         	// Werte speichern
         }
@@ -133,13 +181,16 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         // for each twiddle factor all butterfly nodes are computed (in inner for loop)
         for(m=0; m<l; ++m)
         {
+        	// m = 1 >> j = 1 * (2^8)
+        	// m = 2 >> j = 2 * (2^8)
+        	
             j = m << k; // j = m * (2^k)
             /* 0 <= j < N_WAVE/2 */
             
             // Calculate twiddle factor for this stage and stepwidth
             fixed_complex twiddle = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
 
-            if (istep == 2) 
+            if (istep == 2 || istep == 4) 
             {}
             else {
 	            // all butterfly compute node executions with one specific twiddle factor

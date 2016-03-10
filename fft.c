@@ -107,7 +107,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 STORE_IMAG(fi, i);
         	}
         }
-        if (istep == 4) 
+        else if (istep == 4) 
         {
         	// Werte umsortieren
         	
@@ -172,24 +172,24 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				vec4x16 *twiddle_array_ptr = (vec4x16 *)twiddle_array;
 				
 				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2(*twiddle_array_ptr, shift);
-                              
-				fr[i] 	= out_data5[1];
-				fr[i+1] = out_data6[1];
-                fr[i+2] = out_data5[3];
-                fr[i+3] = out_data6[3];
-                fr[i+4] = out_data5[5];
-                fr[i+5] = out_data6[5];
-                fr[i+6] = out_data5[7];
-                fr[i+7] = out_data6[7];
                 
-                fi[i] 	= out_data5[0];
-                fi[i+1] = out_data6[0];
-                fi[i+2] = out_data5[2];
-                fi[i+3] = out_data6[2];
-                fi[i+4] = out_data5[4];
-                fi[i+5] = out_data6[4];
-                fi[i+6] = out_data5[6];
-                fi[i+7] = out_data6[6];
+				fr[i] 	= out_data5[3];
+				fr[i+1] = out_data6[3];
+                fr[i+2] = out_data5[1];
+                fr[i+3] = out_data6[1];
+                fr[i+4] = out_data5[7];
+                fr[i+5] = out_data6[7];
+                fr[i+6] = out_data5[5];
+                fr[i+7] = out_data6[5];
+                
+                fi[i] 	= out_data5[2];
+                fi[i+1] = out_data6[2];
+                fi[i+2] = out_data5[0];
+                fi[i+3] = out_data6[0];
+                fi[i+4] = out_data5[6];
+                fi[i+5] = out_data6[6];
+                fi[i+6] = out_data5[4];
+                fi[i+7] = out_data6[4];
                 
                 // Werte speichern
         	}
@@ -238,11 +238,14 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 					int f = ((fr[j] << 16) | (fi[j]) & 0xffff);
 	                
 					*p_out = FFT_CALC_BUTTERFLY(q, f, twiddle, shift);
-	                                
-	                fr[j] = out_data[3];
-	                fi[j] = out_data[2];
-	                fr[i] = out_data[1];
-	                fi[i] = out_data[0];
+	                
+					// Even Values
+					fr[i] = out_data[3];
+					fi[i] = out_data[2];
+					
+					// Odd Values
+	                fr[j] = out_data[1];
+	                fi[j] = out_data[0];
 	            }
             }
         }

@@ -265,6 +265,8 @@ state FI 64 64'b0 add_read_write
 operation LOAD_REAL {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out QR, out FR}
 {
 	assign VAddr =  addr + {offset[30:0], 1'b0};
+		
+	// ! Always be careful when reading/writing to memory, it is in reverse order
 	wire [15:0]FR4 = MemDataIn128[127:112];
 	wire [15:0]FR3 = MemDataIn128[95:80];
 	wire [15:0]FR2 = MemDataIn128[63:48];
@@ -281,6 +283,8 @@ operation LOAD_REAL {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out 
 operation LOAD_IMAG {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out QI, out FI}
 {
 	assign VAddr =  addr + {offset[30:0], 1'b0};
+		
+	// ! Always be careful when reading/writing to memory, it is in reverse order
 	wire [15:0]FI4 = MemDataIn128[127:112];
 	wire [15:0]FI3 = MemDataIn128[95:80];
 	wire [15:0]FI2 = MemDataIn128[63:48];
@@ -316,6 +320,7 @@ operation STORE_REAL {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, i
 	wire [15:0] result4_even_real 	= result4[63:48];
 	wire [15:0] result4_odd_real	= result4[31:16];
 	
+	// ! Always be careful when reading/writing to memory, it is in reverse order
 	assign MemDataOut128 = {result4_odd_real, result4_even_real,
 							result3_odd_real, result3_even_real,
 							result2_odd_real, result2_even_real,
@@ -344,6 +349,7 @@ operation STORE_IMAG {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, i
 	wire [15:0] result4_even_imag 	= result4[47:32];
 	wire [15:0] result4_odd_imag	= result4[15:0];
 	
+	// ! Always be careful when reading/writing to memory, it is in reverse order
 	assign MemDataOut128 = {result4_odd_imag, result4_even_imag,
 							result3_odd_imag, result3_even_imag,
 							result2_odd_imag, result2_even_imag,
@@ -393,7 +399,8 @@ function [127:0] shuffle8x16 ([127:0] vector8x16)
 	wire [15:0] v7 = vector8x16[31:16];
 	wire [15:0] v8 = vector8x16[15:0];
 	
-	assign shuffle8x16 = {v1, v3, v5, v7, v2, v4, v6, v8};
+	// ! Always be careful when reading/writing to memory, it is in reverse order
+	assign shuffle8x16 = {v8, v6, v4, v2, v7, v5, v3, v1};
 }
 
 operation FFT_SHUFFLE_READ_REAL {in AR *addr, in AR offset} {out VAddr, in MemDataIn128, out DataReal}

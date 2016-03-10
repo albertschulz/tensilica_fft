@@ -103,16 +103,12 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				
 				FFT_CALC_4_BUTTERFLIES_FROM_STATES(twiddle, shift);
 
-                STORE_REAL(fr, i);
-                STORE_IMAG(fi, i);
+				FFT_REVERSE_SHUFFLE_STORE_REAL(fr, i);
+				FFT_REVERSE_SHUFFLE_STORE_IMAG(fi, i);
         	}
         }
         else if (istep == 4) 
         {
-        	// Werte umsortieren
-        	
-        	// Alles für 2 Werte für m: 0, 1
-        	
         	// 2 Twiddle Faktoren berechnen
         	int j1 = 0 << k; // m=0
         	int j2 = 1 << k; // m=1
@@ -126,30 +122,55 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 //// Implementation of FFT compute node (see task Fig.2)
 				
 				// Alle Daten aus Speicher laden, und shufflen
-				FFT_SHUFFLE_READ_REAL(fr, i);
-				FFT_SHUFFLE_READ_IMAG(fi, i);
+        		LOAD_DATA_REAL(fr, i);
+        		LOAD_DATA_IMAG(fi, i);
 				
 				// Butterfly Berechnung aus States mit unterschiedlichen Twiddle Faktoren
 				
-				int twiddle_array[2] aligned_by_4 = {tw2, tw1};
+				fixed_complex twiddle_array[2] aligned_by_4 = {tw2, tw1};
 				vec4x16 *twiddle_array_ptr = (vec4x16 *)twiddle_array;
 				
 				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2(*twiddle_array_ptr, shift);
                 
                 // Werte speichern
-                FFT_SHUFFLE_STORE_REAL(fr, i);
-                FFT_SHUFFLE_STORE_IMAG(fi, i);
+				FFT_REVERSE_SHUFFLE_STORE_REAL(fr, i);
+				FFT_REVERSE_SHUFFLE_STORE_IMAG(fi, i);
         	}
         }
         else if (istep == 8)
         {
-        	// Werte umsortieren
         	
-        	// 4 Twiddle Faktoren berechnen
-        	
-        	// Butterfly Berechnung mit 4 versch. Twiddle Faktoren
-        	
-        	// Werte speichern
+        	// 2 Twiddle Faktoren berechnen
+        	int j1 = 0 << k; // m=0
+        	int j2 = 1 << k; // m=1
+        	int j3 = 2 << k; // m=2
+        	int j4 = 3 << k; // m=3
+        	                        
+        	fixed_complex tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
+        	fixed_complex tw2 = FFT_CALC_TWIDDLE_FACTOR(j2, inverse, shift);
+        	fixed_complex tw3 = FFT_CALC_TWIDDLE_FACTOR(j3, inverse, shift);
+        	fixed_complex tw4 = FFT_CALC_TWIDDLE_FACTOR(j4, inverse, shift);
+        	        	
+        	// Butterfly Berechnung mit 2 verschiedenen Twiddle Faktoren
+        	for (i=0; i<n; i = i+8)
+        	{
+                //// Implementation of FFT compute node (see task Fig.2)
+				
+				// Alle Daten aus Speicher laden, und shufflen
+        		LOAD_DATA_REAL(fr, i);
+        		LOAD_DATA_IMAG(fi, i);
+				
+				// Butterfly Berechnung aus States mit unterschiedlichen Twiddle Faktoren
+				
+				fixed_complex twiddle_array[4] aligned_by_16 = {tw4, tw3, tw2, tw1};
+				vect8x16 *twiddle_array_ptr = (vect8x16 *)twiddle_array;
+				
+				FFT_CALC_4_BUTTERFLIES_FROM_STATES_4(*twiddle_array_ptr, shift);
+                
+                // Werte speichern
+				FFT_REVERSE_SHUFFLE_STORE_REAL(fr, i);
+				FFT_REVERSE_SHUFFLE_STORE_IMAG(fi, i);
+        	}
         }
         
         // Werte in RAM ablegen (evtl. außerhalb der Schleife)
@@ -164,7 +185,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             // Calculate twiddle factor for this stage and stepwidth
             fixed_complex twiddle = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
 
-            if (istep == 2 || istep == 4) 
+            if (istep == 2 || istep == 4 || istep == 8)
             {}
             else {
 	            // all butterfly compute node executions with one specific twiddle factor

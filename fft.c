@@ -123,42 +123,30 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	// Butterfly Berechnung mit 2 verschiedenen Twiddle Faktoren
         	for (i=0; i<n; i = i+8)
         	{
-        		int i1 = i;
-        		int i2 = i+1;
-        		int i3 = i+4;
-        		int i4 = i+5;
-        		
-        		int j1 = i1 + l;
-        		int j2 = i2 + l;
-        		int j3 = i3 + l;
-        		int j4 = i4 + l;
-        
                 //// Implementation of FFT compute node (see task Fig.2)
 
-				fixed qr1 = fr[i1];
-				fixed qr2 = fr[i2];
-				fixed qr3 = fr[i3];
-				fixed qr4 = fr[i4];
-
-				fixed qi1 = fi[i1];
-				fixed qi2 = fi[i2];
-				fixed qi3 = fi[i3];
-				fixed qi4 = fi[i4];
+				fixed qr1 = fr[i];
+				fixed qr2 = fr[i+1];
+				fixed fr1 = fr[i+2];
+				fixed fr2 = fr[i+3];
+				fixed qr3 = fr[i+4];
+				fixed qr4 = fr[i+5];
+				fixed fr3 = fr[i+6];
+				fixed fr4 = fr[i+7];
 				
-				int q1 = ((qr1 << 16) | (qi1 & 0xffff));
-				int q2 = ((qr2 << 16) | (qi2 & 0xffff));
-				int q3 = ((qr3 << 16) | (qi3 & 0xffff));
-				int q4 = ((qr4 << 16) | (qi4 & 0xffff));
-				
-				int f1 = ((fr[j1] << 16) | (fi[j1]) & 0xffff);
-				int f2 = ((fr[j2] << 16) | (fi[j2]) & 0xffff);
-				int f3 = ((fr[j3] << 16) | (fi[j3]) & 0xffff);
-				int f4 = ((fr[j4] << 16) | (fi[j4]) & 0xffff);
+				fixed qi1 = fi[i];
+				fixed qi2 = fi[i+1];
+				fixed fi1 = fi[i+2];
+				fixed fi2 = fi[i+3];
+				fixed qi3 = fi[i+4];
+				fixed qi4 = fi[i+5];
+				fixed fi3 = fi[i+6];
+				fixed fi4 = fi[i+7];
                 				
-				int input_q_1[2] aligned_by_8 = {q1, q3};
-				int input_f_1[2] aligned_by_8 = {f1, f3};
-				int input_q_2[2] aligned_by_8 = {q2, q4};
-				int input_f_2[2] aligned_by_8 = {f2, f4};
+				fixed input_q_1[4] aligned_by_8 = {qi1, qr1, qi3, qr3};
+				fixed input_f_1[4] aligned_by_8 = {fi1, fr1, fi3, fr3};
+				fixed input_q_2[4] aligned_by_8 = {qi2, qr2, qi4, qr4};
+				fixed input_f_2[4] aligned_by_8 = {fi2, fr2, fi4, fr4};
 				
 				fixed out_data5[8] aligned_by_16;
 				fixed out_data6[8] aligned_by_16;
@@ -170,31 +158,41 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				vec4x16 *input_q_2_vector = (vec4x16 *)input_q_2;
 				vec4x16 *input_f_2_vector = (vec4x16 *)input_f_2;
 				
+				// Alle Daten aus Speicher laden, und shufflen
+				FFT_SHUFFLE_READ_REAL(fr, i);
+				FFT_SHUFFLE_READ_IMAG(fi, i);
+				
+				
 				*p_out5 = FFT_CALC_2_BUTTERFLIES(*input_q_1_vector, *input_f_1_vector, tw1, shift);
 				*p_out6 = FFT_CALC_2_BUTTERFLIES(*input_q_2_vector, *input_f_2_vector, tw2, shift);
-                                
-                fr[j1] = out_data5[3];
-                fi[j1] = out_data5[2];
-                fr[i1] = out_data5[1];
-                fi[i1] = out_data5[0];
+				
+				// TODO: Butterfly Berechnung aus States mit unterschiedlichen Twiddle Faktoren
+				
+				int twiddle_array[2] aligned_by_4 = {tw2, tw1};
+				vec4x16 *twiddle_array_ptr = (vec4x16 *)twiddle_array;
+				
+				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2(*twiddle_array_ptr, shift);
+                              
+				fr[i] 	= out_data5[1];
+				fr[i+1] = out_data6[1];
+                fr[i+2] = out_data5[3];
+                fr[i+3] = out_data6[3];
+                fr[i+4] = out_data5[5];
+                fr[i+5] = out_data6[5];
+                fr[i+6] = out_data5[7];
+                fr[i+7] = out_data6[7];
                 
-                fr[j2] = out_data6[3];
-                fi[j2] = out_data6[2];
-                fr[i2] = out_data6[1];
-                fi[i2] = out_data6[0];
+                fi[i] 	= out_data5[0];
+                fi[i+1] = out_data6[0];
+                fi[i+2] = out_data5[2];
+                fi[i+3] = out_data6[2];
+                fi[i+4] = out_data5[4];
+                fi[i+5] = out_data6[4];
+                fi[i+6] = out_data5[6];
+                fi[i+7] = out_data6[6];
                 
-                fr[j3] = out_data5[7];
-                fi[j3] = out_data5[6];
-                fr[i3] = out_data5[5];
-                fi[i3] = out_data5[4];
-                
-                fr[j4] = out_data6[7];
-                fi[j4] = out_data6[6];
-                fr[i4] = out_data6[5];
-                fi[i4] = out_data6[4];
+                // Werte speichern
         	}
-        	
-        	// Werte speichern
         }
         else if (istep == 8)
         {

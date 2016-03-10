@@ -192,15 +192,91 @@ operation FFT_CALC_2_BUTTERFLIES {in vec4x16 even, in vec4x16 odd, in AR tw, in 
 
 state BUTTERFLY_RESULTS 256 256'b0 add_read_write
 
+function [256:0] calc_4_butterflies([63:0] qr, [63:0] qi, [63:0] fr, [63:0] fi, [127:0] tw_vec, [0:0] shift)
+{
+	wire [63:0] result1 = calc_butterfly({qr[63:48],qi[63:48]}, {fr[63:48],fi[63:48]}, tw_vec[127:96], shift);
+	wire [63:0] result2 = calc_butterfly({qr[47:32],qi[47:32]}, {fr[47:32],fi[47:32]}, tw_vec[95:64 ], shift);
+	wire [63:0] result3 = calc_butterfly({qr[31:16],qi[31:16]}, {fr[31:16],fi[31:16]}, tw_vec[63:32 ], shift);
+	wire [63:0] result4 = calc_butterfly({qr[15:0 ],qi[15:0 ]}, {fr[15:0 ],fi[15:0 ]}, tw_vec[31:0  ], shift);
+	
+	assign calc_4_butterflies = {result1, result2, result3, result4};
+}
+
 operation FFT_CALC_4_BUTTERFLIES_FROM_STATES {in AR twiddle, in BR shift} {in QR, in FR, in QI, in FI, out BUTTERFLY_RESULTS}
 {
-	// result = {odd, even}
-	wire [63:0] result1 = calc_butterfly({QR[63:48],QI[63:48]}, {FR[63:48],FI[63:48]}, twiddle, shift);
-	wire [63:0] result2 = calc_butterfly({QR[47:32],QI[47:32]}, {FR[47:32],FI[47:32]}, twiddle, shift);
-	wire [63:0] result3 = calc_butterfly({QR[31:16],QI[31:16]}, {FR[31:16],FI[31:16]}, twiddle, shift);
-	wire [63:0] result4 = calc_butterfly({QR[15:0 ],QI[15:0 ]}, {FR[15:0 ],FI[15:0 ]}, twiddle, shift);
+	assign BUTTERFLY_RESULTS = calc_4_butterflies(QR, QI, FR, FI, {twiddle, twiddle, twiddle, twiddle}, shift);
+}
+
+function [63:0] get_even([127:0] vector8x16)
+{
+	wire [15:0] v0 = vector8x16[127:112];
+	wire [15:0] v2 = vector8x16[95:80];
+	wire [15:0] v4 = vector8x16[63:48];
+	wire [15:0] v6 = vector8x16[31:16];
 	
-	assign BUTTERFLY_RESULTS = {result1, result2, result3, result4};
+	assign get_even = {v0, v2, v4, v6};
+}
+
+function [63:0] get_odd([127:0] vector8x16)
+{
+	wire [15:0] v1 = vector8x16[111:96];
+	wire [15:0] v3 = vector8x16[79:64];
+	wire [15:0] v5 = vector8x16[47:32];
+	wire [15:0] v7 = vector8x16[15:0];
+	
+	assign get_odd = {v1, v3, v5, v7};
+}
+
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2 {in vec4x16 twiddle, in BR shift} {in DataReal, in DataImag, out BUTTERFLY_RESULTS}
+{
+	wire [63:0] even_r 	= get_even(DataReal);
+	wire [63:0] even_i 	= get_even(DataImag);
+	wire [63:0] odd_r 	= get_odd(DataReal);
+	wire [63:0] odd_i 	= get_odd(DataImag);
+	
+	assign BUTTERFLY_RESULTS = calc_4_butterflies(even_r, even_i, odd_r, odd_i, {twiddle[63:32], twiddle[31:0], twiddle[63:32], twiddle[31:0]}, shift);
+}
+
+schedule FFT_CALC_BUTTERFLY_sched {FFT_CALC_BUTTERFLY} 
+{
+	def odd_even_out 2;
+}
+
+state QR 64 64'b0 add_read_write
+state FR 64 64'b0 add_read_write
+state QI 64 64'b0 add_read_write
+state FI 64 64'b0 add_read_write
+
+operation LOAD_REAL {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out QR, out FR}
+{
+	assign VAddr =  addr + {offset[30:0], 1'b0};
+	wire [15:0]FR4 = MemDataIn128[127:112];
+	wire [15:0]FR3 = MemDataIn128[95:80];
+	wire [15:0]FR2 = MemDataIn128[63:48];
+	wire [15:0]FR1 = MemDataIn128[31:16];
+	assign FR = {FR1, FR2, FR3, FR4};
+	
+	wire [15:0]QR4 = MemDataIn128[111:96];
+	wire [15:0]QR3 = MemDataIn128[79:64];
+	wire [15:0]QR2 = MemDataIn128[47:32];
+	wire [15:0]QR1 = MemDataIn128[15:0];
+	assign QR = {QR1, QR2, QR3, QR4};
+}
+
+operation LOAD_IMAG {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out QI, out FI}
+{
+	assign VAddr =  addr + {offset[30:0], 1'b0};
+	wire [15:0]FI4 = MemDataIn128[127:112];
+	wire [15:0]FI3 = MemDataIn128[95:80];
+	wire [15:0]FI2 = MemDataIn128[63:48];
+	wire [15:0]FI1 = MemDataIn128[31:16];
+	assign FI = {FI1, FI2, FI3, FI4};
+	
+	wire [15:0]QI4 = MemDataIn128[111:96];
+	wire [15:0]QI3 = MemDataIn128[79:64];
+	wire [15:0]QI2 = MemDataIn128[47:32];
+	wire [15:0]QI1 = MemDataIn128[15:0];
+	assign QI = {QI1, QI2, QI3, QI4};
 }
 
 operation STORE_REAL {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
@@ -259,46 +335,31 @@ operation STORE_IMAG {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, i
 							result1_odd_imag, result1_even_imag};
 }
 
-schedule FFT_CALC_BUTTERFLY_sched {FFT_CALC_BUTTERFLY} 
-{
-	def odd_even_out 2;
-}
+state DataReal 128 128'b0 add_read_write
+state DataImag 128 128'b0 add_read_write
 
-state QR 64 64'b0 add_read_write
-state FR 64 64'b0 add_read_write
-state QI 64 64'b0 add_read_write
-state FI 64 64'b0 add_read_write
-
-operation LOAD_REAL {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out QR, out FR}
+operation LOAD_DATA_REAL {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out DataReal}
 {
 	assign VAddr =  addr + {offset[30:0], 1'b0};
-	wire [15:0]FR4 = MemDataIn128[127:112];
-	wire [15:0]FR3 = MemDataIn128[95:80];
-	wire [15:0]FR2 = MemDataIn128[63:48];
-	wire [15:0]FR1 = MemDataIn128[31:16];
-	assign FR = {FR1, FR2, FR3, FR4};
-	
-	wire [15:0]QR4 = MemDataIn128[111:96];
-	wire [15:0]QR3 = MemDataIn128[79:64];
-	wire [15:0]QR2 = MemDataIn128[47:32];
-	wire [15:0]QR1 = MemDataIn128[15:0];
-	assign QR = {QR1, QR2, QR3, QR4};
+	assign DataReal = MemDataIn128;
 }
 
-operation LOAD_IMAG {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out QI, out FI}
+operation LOAD_DATA_IMAG {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out DataImag}
 {
 	assign VAddr =  addr + {offset[30:0], 1'b0};
-	wire [15:0]FI4 = MemDataIn128[127:112];
-	wire [15:0]FI3 = MemDataIn128[95:80];
-	wire [15:0]FI2 = MemDataIn128[63:48];
-	wire [15:0]FI1 = MemDataIn128[31:16];
-	assign FI = {FI1, FI2, FI3, FI4};
-	
-	wire [15:0]QI4 = MemDataIn128[111:96];
-	wire [15:0]QI3 = MemDataIn128[79:64];
-	wire [15:0]QI2 = MemDataIn128[47:32];
-	wire [15:0]QI1 = MemDataIn128[15:0];
-	assign QI = {QI1, QI2, QI3, QI4};
+	assign DataImag = MemDataIn128;
+}
+
+operation STORE_DATA_REAL {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, in DataReal}
+{
+	assign VAddr =  addr + {offset[30:0], 1'b0};
+	assign MemDataOut128 = DataReal;
+}
+
+operation STORE_DATA_IMAG {in AR *addr, in AR offset}{out VAddr, out MemDataOut128, in DataImag}
+{
+	assign VAddr =  addr + {offset[30:0], 1'b0};
+	assign MemDataOut128 = DataImag;
 }
 
 format flix64 64 {slot_0, slot_1, slot_2}
@@ -306,4 +367,38 @@ slot_opcodes slot_0 {LOAD_REAL, STORE_REAL, LOAD_IMAG, STORE_IMAG}
 slot_opcodes slot_1 {NOP}
 slot_opcodes slot_2 {LOAD_REAL, STORE_REAL, LOAD_IMAG, STORE_IMAG}
 
-// function [127:0] fft_shuffle ()
+operation FFT_SORT {} {in DataReal, in DataImag, out QR, out QI, out FR, out FI}
+{
+	assign QR = {DataReal[127:112], DataReal[95:80], DataReal[111:96], DataReal[79:64]};
+	assign FR = {DataReal[63:48], DataReal[31:16], DataReal[47:32], DataReal[15:0]};
+	
+	assign QI = {DataImag[127:112], DataImag[95:80], DataImag[111:96], DataImag[79:64]};
+	assign FI = {DataImag[63:48], DataImag[31:16], DataImag[47:32], DataImag[15:0]};
+}
+
+function [127:0] shuffle8x16 ([127:0] vector8x16)
+{
+	wire [15:0] v1 = vector8x16[127:112];
+	wire [15:0] v2 = vector8x16[111:96];
+	wire [15:0] v3 = vector8x16[95:80];
+	wire [15:0] v4 = vector8x16[79:64];
+	wire [15:0] v5 = vector8x16[63:48];
+	wire [15:0] v6 = vector8x16[47:32];
+	wire [15:0] v7 = vector8x16[31:16];
+	wire [15:0] v8 = vector8x16[15:0];
+	
+	assign shuffle8x16 = {v1, v5, v2, v6, v3, v7, v4, v8};
+}
+
+operation FFT_SHUFFLE_READ_REAL {in AR *addr, in AR offset} {out VAddr, in MemDataIn128, out DataReal}
+{
+	assign VAddr =  addr + {offset[30:0], 1'b0};
+	assign DataReal = shuffle8x16(MemDataIn128);
+}
+
+operation FFT_SHUFFLE_READ_IMAG {in AR *addr, in AR offset} {out VAddr, in MemDataIn128, out DataImag}
+{
+	assign VAddr =  addr + {offset[30:0], 1'b0};
+	assign DataImag = shuffle8x16(MemDataIn128);
+}
+ 

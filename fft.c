@@ -8,6 +8,9 @@
 #define aligned_by_4 __attribute__ ((aligned(4)))
 #define fixed_complex int
 
+#define SHUFFLE 0
+#define REVERSE_SHUFFLE 1
+
 int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 {
     int mr,nn,i,j,l,k,istep, n, scale, shift;
@@ -95,14 +98,14 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	{
         		j = i + l;
         		                
-				LOAD_REAL(fr, i);
-				LOAD_IMAG(fi, i);
+        		FFT_SIMD_LOAD_REAL(fr, i);
+        		FFT_SIMD_LOAD_IMAG(fi, i);
 				
 				FFT_CALC_4_BUTTERFLIES_FROM_STATES(twiddle, shift);
 
 				// Werte speichern und shuffeln
-				FFT_REVERSE_SHUFFLE_STORE_REAL(fr, i);
-				FFT_REVERSE_SHUFFLE_STORE_IMAG(fi, i);
+				FFT_SIMD_SHUFFLE_STORE_REAL(fr, i, REVERSE_SHUFFLE);
+				FFT_SIMD_SHUFFLE_STORE_IMAG(fi, i, REVERSE_SHUFFLE);
         	}
         }
         else if (istep == 4) 
@@ -118,8 +121,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	for (i=0; i<n; i = i+8)
         	{				
 				// Alle Daten aus Speicher laden
-        		LOAD_DATA_REAL(fr, i);
-        		LOAD_DATA_IMAG(fi, i);
+        		FFT_SIMD_LOAD_REAL(fr, i);
+        		FFT_SIMD_LOAD_IMAG(fi, i);
 				
 				// Butterfly Berechnung aus States mit unterschiedlichen Twiddle Faktoren
 				
@@ -129,8 +132,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2(*twiddle_array_ptr, shift);
                 
                 // Werte speichern und shuffeln
-				FFT_REVERSE_SHUFFLE_STORE_REAL(fr, i);
-				FFT_REVERSE_SHUFFLE_STORE_IMAG(fi, i);
+				FFT_SIMD_SHUFFLE_STORE_REAL(fr, i, REVERSE_SHUFFLE);
+				FFT_SIMD_SHUFFLE_STORE_IMAG(fi, i, REVERSE_SHUFFLE);
         	}
         }
         else if (istep == 8)
@@ -150,8 +153,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	for (i=0; i<n; i = i+8)
         	{				
 				// Alle Daten aus Speicher laden
-        		LOAD_DATA_REAL(fr, i);
-        		LOAD_DATA_IMAG(fi, i);
+        		FFT_SIMD_LOAD_REAL(fr, i);
+        		FFT_SIMD_LOAD_IMAG(fi, i);
 				
 				// Butterfly Berechnung aus States mit unterschiedlichen Twiddle Faktoren
 				
@@ -161,8 +164,9 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 				FFT_CALC_4_BUTTERFLIES_FROM_STATES_4(*twiddle_array_ptr, shift);
                 
                 // Werte speichern und shuffeln
-				FFT_REVERSE_SHUFFLE_STORE_REAL(fr, i);
-				FFT_REVERSE_SHUFFLE_STORE_IMAG(fi, i);
+				FFT_SIMD_SHUFFLE_STORE_REAL(fr, i, REVERSE_SHUFFLE);
+				FFT_SIMD_SHUFFLE_STORE_IMAG(fi, i, REVERSE_SHUFFLE);
+				
         	}
         }
         else {

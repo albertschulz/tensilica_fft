@@ -134,40 +134,99 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         else { // Stages greater than 3
  
 	        // for each twiddle factor all butterfly nodes are computed (in inner for loop)
-	        for(m=0; m<l; ++m)
+	        for(m=0; m<l; m = m+1)
 	        {
 	            j = m << k; // j = m * (2^k)
 	            /* 0 <= j < N_WAVE/2 */
 	            
 	            // Calculate twiddle factor for this stage and stepwidth
-	            fixed_complex twiddle = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
+	            fixed_complex twiddle = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift); // TODO: use m,k instead of j
 	
 	            // all butterfly compute node executions with one specific twiddle factor
-	            for(i=m; i<n; i = i+istep)
+	            for(i=m; i<n; i = CALC_I(i, istep)) // Use Fused Multiply Add for i calculation
 	            {
 	                j = i + l;
 	                
 	                //// Implementation of FFT compute node (see task Fig.2)
 	                
-					// load even value (complex)
-					qr = fr[i];
-					qi = fi[i];
-					
-					fixed out_data[4] aligned_by_16;
-					vec4x16 *p_out = (vec4x16 *)out_data;
-					
-					fixed q_complex[2] = {qi, qr};
-					fixed f_complex[2] = {fi[j], fr[j]};
+	                // Load fr_addr into special register
+	                SET_FR_I_ADDR(fr, i);
 	                
-					*p_out = FFT_CALC_BUTTERFLY(*(int*)q_complex, *(int*)f_complex, twiddle, shift);
+					// Load Real Values
+	                fixed qr1 = fr[i];
+	                fixed qr2 = fr[i + istep];
+	                fixed qr3 = fr[i + istep*2];
+	                fixed qr4 = fr[i + istep*3];
+	                fixed fr1 = fr[i +         + l];
+	                fixed fr2 = fr[i + istep   + l];
+	                fixed fr3 = fr[i + istep*2 + l];
+	                fixed fr4 = fr[i + istep*3 + l];
 	                
-					// Even Values
-					fr[i] = out_data[3];
-					fi[i] = out_data[2];
+	                // even, odd, even, odd... (i, j, i, j, ...)
+	                LOAD_INTO_REAL_REG(0);
+	                LOAD_INTO_REAL_REG(l);
+	                LOAD_INTO_REAL_REG(istep);
+	                LOAD_INTO_REAL_REG(istep+l);
+					LOAD_INTO_REAL_REG(istep*2);
+					LOAD_INTO_REAL_REG(istep*2+l);
+					LOAD_INTO_REAL_REG(istep*3);
+					LOAD_INTO_REAL_REG(istep*3+l);
 					
-					// Odd Values
-	                fr[j] = out_data[1];
-	                fi[j] = out_data[0];
+	                // Load Complex Values
+	                fixed qi1 = fi[i];
+	                fixed qi2 = fi[i + istep];
+	                fixed qi3 = fi[i + istep*2];
+	                fixed qi4 = fi[i + istep*3];
+	                fixed fi1 = fi[i +         + l];
+	                fixed fi2 = fi[i + istep   + l];
+	                fixed fi3 = fi[i + istep*2 + l];
+	                fixed fi4 = fi[i + istep*3 + l];
+					
+	                fixed out_data1[4] aligned_by_16;
+	                fixed out_data2[4] aligned_by_16;
+	                fixed out_data3[4] aligned_by_16;
+	                fixed out_data4[4] aligned_by_16;
+	                
+	                vec4x16 *p_out1 = (vec4x16 *)out_data1;
+	                vec4x16 *p_out2 = (vec4x16 *)out_data2;
+	                vec4x16 *p_out3 = (vec4x16 *)out_data3;
+	                vec4x16 *p_out4 = (vec4x16 *)out_data4;
+					
+	                fixed q_complex1[2] = {qi1, qr1};
+	                fixed q_complex2[2] = {qi2, qr2};
+	                fixed q_complex3[2] = {qi3, qr3};
+	                fixed q_complex4[2] = {qi4, qr4};
+	                
+	                fixed f_complex1[2] = {fi1, fr1};
+	                fixed f_complex2[2] = {fi2, fr2};
+	                fixed f_complex3[2] = {fi3, fr3};
+	                fixed f_complex4[2] = {fi4, fr4};
+	                
+	                // TODO: Combine to one butterfly calculation
+	                *p_out1 = FFT_CALC_BUTTERFLY(*(int*)q_complex1, *(int*)f_complex1, twiddle, shift);
+	                *p_out2 = FFT_CALC_BUTTERFLY(*(int*)q_complex2, *(int*)f_complex2, twiddle, shift);
+	                *p_out3 = FFT_CALC_BUTTERFLY(*(int*)q_complex3, *(int*)f_complex3, twiddle, shift);
+	                *p_out4 = FFT_CALC_BUTTERFLY(*(int*)q_complex4, *(int*)f_complex4, twiddle, shift);
+	                
+					// Real Values
+	                fr[i] 				= out_data1[3];
+	                fr[i+istep] 		= out_data2[3];
+	                fr[i+istep*2] 		= out_data3[3];
+	                fr[i+istep*3]		= out_data4[3];
+	                fr[i + 		   + l] = out_data1[1];
+	                fr[i + istep   + l] = out_data2[1];
+	                fr[i + istep*2 + l] = out_data3[1];
+	                fr[i + istep*3 + l] = out_data4[1];
+	                
+	                // Imag Values
+	                fi[i] 				= out_data1[2];
+	                fi[i + istep] 		= out_data2[2];
+	                fi[i + istep*2] 	= out_data3[2];
+	                fi[i + istep*3] 	= out_data4[2];
+	                fi[i + 		   + l] = out_data1[0];
+	                fi[i + istep   + l] = out_data2[0];
+					fi[i + istep*2 + l] = out_data3[0];
+					fi[i + istep*3 + l] = out_data4[0];
 	            }
 	        }
         }

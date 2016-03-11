@@ -542,3 +542,34 @@ operation FFT_CHECK_SHIFT_CONDITION {in vect8x16 j_vector, in vect8x16 m_vector,
 							| 	greaterThan16383(m8);
 }
 
+operation CALC_I {in AR i_in, in AR istep, out AR i_out} {}
+{
+	wire [31:0] shifted_istep = {istep[29:0], 2'b0};
+	assign i_out = TIEadd(i_in, shifted_istep, 1'b0);
+}
+
+state fr_i_addr 32 32'b0 add_read_write
+state fi_i_addr 32 32'b0 add_read_write
+
+operation SET_FR_I_ADDR {in AR *addr, in AR offset} {out fr_i_addr}
+{
+	assign fr_i_addr = TIEadd(addr, offset, 1'b0);
+}
+
+operation LOAD_INTO_REAL_REG {in AR offset} {out VAddr, in MemDataIn16, inout DataReal, in fr_i_addr}
+{
+		assign VAddr 	= TIEadd(fr_i_addr, offset, 1'b0);
+		assign DataReal = {DataReal[111:0], MemDataIn16};
+}
+
+operation SET_FI_I_ADDR {in AR *addr, in AR offset} {out fr_i_addr}
+{
+	assign fr_i_addr = TIEadd(addr, offset, 1'b0);
+}
+
+operation LOAD_INTO_IMAG_REG {in AR offset} {out VAddr, in MemDataIn16, inout DataImag, in fi_i_addr}
+{
+		assign VAddr 	= TIEadd(fi_i_addr, offset, 1'b0);
+		assign DataImag = {DataImag[111:0], MemDataIn16};
+}
+

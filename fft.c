@@ -37,14 +37,14 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
     	
         if(mr <= m) continue;
         
-        // swap contents of memory (real part)
+        // swap contents of memory (real part & imaginary part)
         tr = fr[m];
-        fr[m] = fr[mr];
-        fr[mr] = tr;
-        
-        // swap contents of memory (imaginary part)
         ti = fi[m];
+        
+        fr[m] = fr[mr];
         fi[m] = fi[mr];
+        
+        fr[mr] = tr;
         fi[mr] = ti;
     }
 	    
@@ -57,19 +57,16 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         {
             /* variable scaling, depending upon data */
             shift = 0;
-            for(i=0; i<n; ++i)
+            for(i=0; i<n; i=i+8)
             {
-                j = fr[i];
-                if(j < 0) j = -j;
-                
-                m = fi[i];
-                if(m < 0) m = -m;
-                
-                if(j > 16383 || m > 16383)
-                {
-                    shift = 1;
-                    break;
-                }
+				vect8x16 j_vector = FFT_SIMD_LOAD(fr, i);
+				vect8x16 m_vector = FFT_SIMD_LOAD(fi, i);
+            	
+            	if (FFT_CHECK_SHIFT_CONDITION(j_vector, m_vector))
+            	{
+            		shift = 1;
+            		break;
+            	}
             }
             if(shift) ++scale;
         }

@@ -102,6 +102,23 @@ function [15:0] get_sin_value ([9:0] idx)
 	assign get_sin_value = TIEmux(idx[9], SINWAVE[idx], neg_sin_value);
 }
 
+function [0:0] isNegative([15:0] value)
+{
+	assign isNegative = value[15:15];
+}
+
+function [0:0] greaterThan16383([15:0] value)
+{
+	assign greaterThan16383 = value[14:14];
+}
+
+// Returns the absolute value of the given value
+function [15:0] abs([15:0] value)
+{
+	wire [15:0] negative_value = TIEadd(15'b0, ~value, 1'b1);
+	assign abs = TIEmux(isNegative(value), value, negative_value);
+}
+
 //
 // Operations
 //
@@ -367,9 +384,9 @@ operation FFT_SIMD_LOAD_IMAG {in AR *addr, in AR offset}{out VAddr, in MemDataIn
 }
 
 format flix64 64 {slot_0, slot_1, slot_2}
-slot_opcodes slot_0 {FFT_SIMD_LOAD_REAL, FFT_SIMD_LOAD_IMAG, FFT_SIMD_SHUFFLE_LOAD_REAL, FFT_SIMD_SHUFFLE_LOAD_IMAG, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
-slot_opcodes slot_1 {NOP}
-slot_opcodes slot_2 {FFT_SIMD_LOAD_REAL, FFT_SIMD_LOAD_IMAG, FFT_SIMD_SHUFFLE_LOAD_REAL, FFT_SIMD_SHUFFLE_LOAD_IMAG, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
+slot_opcodes slot_0 {L16SI, S16I, FFT_LOAD, FFT_SIMD_LOAD, FFT_SIMD_LOAD_REAL, FFT_SIMD_LOAD_IMAG, FFT_SIMD_SHUFFLE_LOAD_REAL, FFT_SIMD_SHUFFLE_LOAD_IMAG, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
+slot_opcodes slot_1 {ADD.N, ADDX2}
+slot_opcodes slot_2 {L16SI, S16I, FFT_LOAD, FFT_SIMD_LOAD, FFT_SIMD_LOAD_REAL, FFT_SIMD_LOAD_IMAG, FFT_SIMD_SHUFFLE_LOAD_REAL, FFT_SIMD_SHUFFLE_LOAD_IMAG, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
 
 // !!!
 // Always be careful when reading/writing to memory, it is in reverse order
@@ -446,6 +463,7 @@ operation FFT_SIMD_SHUFFLE_STORE_IMAG {in AR *addr, in AR offset, in BR reverse}
 	assign MemDataOut128 		= reverse_2_byte_wise(shuffledValues);
 }
 
+
 // skip BUTTERFLY_RESULTS Register? (use inout DataImag, inout DataReal)
 operation FFT_SHUFFLE {in BR reverse} {out DataImag, out DataReal, in BUTTERFLY_RESULTS}
 {
@@ -454,3 +472,48 @@ operation FFT_SHUFFLE {in BR reverse} {out DataImag, out DataReal, in BUTTERFLY_
 	assign DataReal = TIEmux(reverse, shuffle8x16(realValues), reverse_shuffle8x16(realValues));
 	assign DataImag = TIEmux(reverse, shuffle8x16(imagValues), reverse_shuffle8x16(imagValues));
 }
+
+operation FFT_SIMD_LOAD {in AR *addr, in AR offset, out vect8x16 output} {out VAddr, in MemDataIn128}
+{
+	assign VAddr = addr + {offset[30:0], 1'b0};
+	assign output = reverse_2_byte_wise(MemDataIn128);
+}
+
+operation FFT_CHECK_SHIFT_CONDITION {in vect8x16 j_vector, in vect8x16 m_vector, out BR should_shift} {}
+{
+	wire [15:0] j1 = abs(j_vector[127:112]);
+	wire [15:0] j2 = abs(j_vector[111:96 ]);
+	wire [15:0] j3 = abs(j_vector[95 :80 ]);
+	wire [15:0] j4 = abs(j_vector[79 :64 ]);
+	wire [15:0] j5 = abs(j_vector[63 :48 ]);
+	wire [15:0] j6 = abs(j_vector[47 :32 ]);
+	wire [15:0] j7 = abs(j_vector[31 :16 ]);
+	wire [15:0] j8 = abs(j_vector[15 :0  ]);
+	
+	wire [15:0] m1 = abs(m_vector[127:112]);
+	wire [15:0] m2 = abs(m_vector[111:96 ]);
+	wire [15:0] m3 = abs(m_vector[95 :80 ]);
+	wire [15:0] m4 = abs(m_vector[79 :64 ]);
+	wire [15:0] m5 = abs(m_vector[63 :48 ]);
+	wire [15:0] m6 = abs(m_vector[47 :32 ]);
+	wire [15:0] m7 = abs(m_vector[31 :16 ]);
+	wire [15:0] m8 = abs(m_vector[15 :0  ]);
+	
+	assign should_shift = 		greaterThan16383(j1) 
+							| 	greaterThan16383(j2) 
+							| 	greaterThan16383(j3) 
+							| 	greaterThan16383(j4) 
+							| 	greaterThan16383(j5) 
+							| 	greaterThan16383(j6) 
+							| 	greaterThan16383(j7) 
+							| 	greaterThan16383(j8) 
+							| 	greaterThan16383(m1) 
+							| 	greaterThan16383(m2) 
+							| 	greaterThan16383(m3) 
+							| 	greaterThan16383(m4) 
+							| 	greaterThan16383(m5) 
+							| 	greaterThan16383(m6) 
+							| 	greaterThan16383(m7) 
+							| 	greaterThan16383(m8);
+}
+

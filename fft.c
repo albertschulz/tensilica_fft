@@ -89,7 +89,9 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         {
 	        for (i=0; i<n; i = i+8)
 	        {
+	        	//
 	        	// 1. Stage
+	        	// 
 	        	k = LOG2_N_WAVE-1;
 	        	istep = 2;
 		       
@@ -109,20 +111,17 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 	        	fixed_complex tw3 = 0;
 	        	fixed_complex tw4 = 0;
 	        	
-	        	
-	        	fixed_complex twiddle = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
-	            
-	        	
-	        	//stage 1, removed for loop
-        		j = i + l;
+	        	tw1 = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
         		                
         		FFT_SIMD_LOAD_REAL(fr, i);
         		FFT_SIMD_LOAD_IMAG(fi, i);
 				
         		// Butterfly (+ shuffle integrated) Berechnung aus States mit gleichen Twiddle Faktoren		
-				FFT_CALC_4_BUTTERFLIES_FROM_STATES(twiddle, shift);
+				FFT_CALC_4_BUTTERFLIES_FROM_STATES(tw1, shift);
 
+				//
 				// 2. Stage
+				//
 				istep = 4;
 				
 	        	// 2 Twiddle Faktoren berechnen

@@ -96,11 +96,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 	        	istep = 2;
 		       
 	        	int m = 0;
-	        	
-	        	j = m << k; // j = m * (2^k)
 	                   
-	        	// init variables
-	        	// 2 Twiddle Faktoren initialisieren
+	        	// Twiddle Faktoren & j initialisieren
 	        	int j1 = 0 << k; // m=0
 	        	int j2 = 1 << k; // m=1
 	        	int j3 = 2 << k; // m=2
@@ -111,7 +108,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 	        	fixed_complex tw3 = 0;
 	        	fixed_complex tw4 = 0;
 	        	
-	        	tw1 = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift);
+	        	tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
         		                
         		FFT_SIMD_LOAD_REAL(fr, i);
         		FFT_SIMD_LOAD_IMAG(fi, i);

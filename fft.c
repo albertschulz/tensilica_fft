@@ -93,75 +93,43 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 	        	// 1. Stage
 	        	// 
 	        	k = LOG2_N_WAVE-1;
-	        	istep = 2;
-		       
-	        	int m = 0;
 	                   
-	        	// Twiddle Faktoren & j initialisieren
-	        	int j1 = 0 << k; // m=0
-	        	int j2 = 1 << k; // m=1
-	        	int j3 = 2 << k; // m=2
-	        	int j4 = 3 << k; // m=3
 	        	
-	        	fixed_complex tw1 = 0;
-	        	fixed_complex tw2 = 0;
-	        	fixed_complex tw3 = 0;
-	        	fixed_complex tw4 = 0;
-	        	
-	        	tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
-        		                
         		FFT_SIMD_LOAD_REAL(fr, i);
         		FFT_SIMD_LOAD_IMAG(fi, i);
 				
         		// Butterfly (+ shuffle integrated) Berechnung aus States mit gleichen Twiddle Faktoren		
-				FFT_CALC_4_BUTTERFLIES_FROM_STATES(tw1, shift);
+        		FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
+        		FFT_CALC_4_BUTTERFLIES_FROM_STATES(shift);
 
 				//
 				// 2. Stage
 				//
-				istep = 4;
 				
 	        	// 2 Twiddle Faktoren berechnen
 				--k;
-	        	j1 = 0 << k; // m=0
-	        	j2 = 1 << k; // m=1
-	        	                        
-	        	tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
-	        	tw2 = FFT_CALC_TWIDDLE_FACTOR(j2, inverse, shift);
 				
 				// Butterfly (+ shuffle integrated) Berechnung aus States mit unterschiedlichen Twiddle Faktoren
-				fixed_complex twiddle_array[2] aligned_by_4 = {tw2, tw1};
-				vec4x16 *twiddle_array_ptr = (vec4x16 *)twiddle_array;
-				
-				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2(*twiddle_array_ptr, shift);
+				FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
+				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2(shift);
                 
 				//
 		        // 3. Stage
 				// 
-			    istep = 8;
 		        
 				--k;
-	        	// 2 Twiddle Faktoren berechnen
-	        	j1 = 0 << k; // m=0
-	        	j2 = 1 << k; // m=1
-	        	j3 = 2 << k; // m=2
-	        	j4 = 3 << k; // m=3
-	        	                        
-	        	tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
-	        	tw2 = FFT_CALC_TWIDDLE_FACTOR(j2, inverse, shift);
-	        	tw3 = FFT_CALC_TWIDDLE_FACTOR(j3, inverse, shift);
-	        	tw4 = FFT_CALC_TWIDDLE_FACTOR(j4, inverse, shift);
-	        	        	
+	        	
 				// Butterfly Berechnung aus States mit 4 unterschiedlichen Twiddle Faktoren
-				fixed_complex twiddle_array_s3[4] aligned_by_16 = {tw4, tw3, tw2, tw1};
-				vect8x16 *twiddle_array_ptr_s3 = (vect8x16 *)twiddle_array_s3;
-				
-				FFT_CALC_4_BUTTERFLIES_FROM_STATES_4(*twiddle_array_ptr_s3, shift);
+				FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
+				FFT_CALC_4_BUTTERFLIES_FROM_STATES_4(shift);
                 
                 // Werte speichern und shuffeln
 				FFT_SIMD_SHUFFLE_STORE_REAL(fr, i, REVERSE_SHUFFLE);
 				FFT_SIMD_SHUFFLE_STORE_IMAG(fi, i, REVERSE_SHUFFLE);
 	        }
+	        
+	        // Für nachfolgende Berechnungen Schrittweite auf 8 erhöhen
+	        istep = 8;
         }
         else { // Stages greater than 3
  

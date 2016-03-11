@@ -2,6 +2,7 @@
 #include "sinwave.h"
 #include <xtensa/tie/xt_booleans.h>
 #include <xtensa/tie/fft.h>
+#define COMPILER_BARRIER() asm volatile("" ::: "memory")
 
 #define aligned_by_16 __attribute__ ((aligned(16)))
 #define aligned_by_8 __attribute__ ((aligned(8)))
@@ -82,7 +83,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
 
-        istep = l << 1; // (2^L)		//step width of current butterfly
+        istep = l << 1; // (2*L)		//step width of current butterfly
         
         // Handling for first 3 Stages
         if (istep == 2)
@@ -143,90 +144,64 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 	            fixed_complex twiddle = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift); // TODO: use m,k instead of j
 	
 	            // all butterfly compute node executions with one specific twiddle factor
-	            for(i=m; i<n; i = CALC_I(i, istep)) // Use Fused Multiply Add for i calculation
-	            {
-	                j = i + l;
-	                
+	            for(i=m; i<n; i = CALC_I(i, l))
+	            {	                
 	                //// Implementation of FFT compute node (see task Fig.2)
 	                
-	                // Load fr_addr into special register
-	                SET_FR_I_ADDR(fr, i);
+	                // Load fr_addr, fi_addr into special register
+	                SET_FR_FI_ADDR(fr, fi, i);
 	                
-					// Load Real Values
-	                fixed qr1 = fr[i];
-	                fixed qr2 = fr[i + istep];
-	                fixed qr3 = fr[i + istep*2];
-	                fixed qr4 = fr[i + istep*3];
-	                fixed fr1 = fr[i +         + l];
-	                fixed fr2 = fr[i + istep   + l];
-	                fixed fr3 = fr[i + istep*2 + l];
-	                fixed fr4 = fr[i + istep*3 + l];
+	                LOAD_INTO_REAL_REG(0, 0);
+	                LOAD_INTO_IMAG_REG(0, 0);
+	                COMPILER_BARRIER();
+	                LOAD_INTO_REAL_REG(1, l);
+	                LOAD_INTO_IMAG_REG(1, l);
+	                COMPILER_BARRIER();
+	                LOAD_INTO_REAL_REG(2, l);
+	                LOAD_INTO_IMAG_REG(2, l);
+	                COMPILER_BARRIER();
+	                LOAD_INTO_REAL_REG(3, l);
+	                LOAD_INTO_IMAG_REG(3, l);
+	                COMPILER_BARRIER();
+					LOAD_INTO_REAL_REG(4, l);
+					LOAD_INTO_IMAG_REG(4, l);
+					COMPILER_BARRIER();
+					LOAD_INTO_REAL_REG(5, l);
+					LOAD_INTO_IMAG_REG(5, l);
+					COMPILER_BARRIER();
+					LOAD_INTO_REAL_REG(6, l);
+					LOAD_INTO_IMAG_REG(6, l);
+					COMPILER_BARRIER();
+					LOAD_INTO_REAL_REG(7, l);
+					LOAD_INTO_IMAG_REG(7, l);
+					COMPILER_BARRIER();
 	                
-	                // even, odd, even, odd... (i, j, i, j, ...)
-	                LOAD_INTO_REAL_REG(0);
-	                LOAD_INTO_REAL_REG(l);
-	                LOAD_INTO_REAL_REG(istep);
-	                LOAD_INTO_REAL_REG(istep+l);
-					LOAD_INTO_REAL_REG(istep*2);
-					LOAD_INTO_REAL_REG(istep*2+l);
-					LOAD_INTO_REAL_REG(istep*3);
-					LOAD_INTO_REAL_REG(istep*3+l);
-					
-	                // Load Complex Values
-	                fixed qi1 = fi[i];
-	                fixed qi2 = fi[i + istep];
-	                fixed qi3 = fi[i + istep*2];
-	                fixed qi4 = fi[i + istep*3];
-	                fixed fi1 = fi[i +         + l];
-	                fixed fi2 = fi[i + istep   + l];
-	                fixed fi3 = fi[i + istep*2 + l];
-	                fixed fi4 = fi[i + istep*3 + l];
-					
-	                fixed out_data1[4] aligned_by_16;
-	                fixed out_data2[4] aligned_by_16;
-	                fixed out_data3[4] aligned_by_16;
-	                fixed out_data4[4] aligned_by_16;
-	                
-	                vec4x16 *p_out1 = (vec4x16 *)out_data1;
-	                vec4x16 *p_out2 = (vec4x16 *)out_data2;
-	                vec4x16 *p_out3 = (vec4x16 *)out_data3;
-	                vec4x16 *p_out4 = (vec4x16 *)out_data4;
-					
-	                fixed q_complex1[2] = {qi1, qr1};
-	                fixed q_complex2[2] = {qi2, qr2};
-	                fixed q_complex3[2] = {qi3, qr3};
-	                fixed q_complex4[2] = {qi4, qr4};
-	                
-	                fixed f_complex1[2] = {fi1, fr1};
-	                fixed f_complex2[2] = {fi2, fr2};
-	                fixed f_complex3[2] = {fi3, fr3};
-	                fixed f_complex4[2] = {fi4, fr4};
-	                
-	                // TODO: Combine to one butterfly calculation
-	                *p_out1 = FFT_CALC_BUTTERFLY(*(int*)q_complex1, *(int*)f_complex1, twiddle, shift);
-	                *p_out2 = FFT_CALC_BUTTERFLY(*(int*)q_complex2, *(int*)f_complex2, twiddle, shift);
-	                *p_out3 = FFT_CALC_BUTTERFLY(*(int*)q_complex3, *(int*)f_complex3, twiddle, shift);
-	                *p_out4 = FFT_CALC_BUTTERFLY(*(int*)q_complex4, *(int*)f_complex4, twiddle, shift);
-	                
-					// Real Values
-	                fr[i] 				= out_data1[3];
-	                fr[i+istep] 		= out_data2[3];
-	                fr[i+istep*2] 		= out_data3[3];
-	                fr[i+istep*3]		= out_data4[3];
-	                fr[i + 		   + l] = out_data1[1];
-	                fr[i + istep   + l] = out_data2[1];
-	                fr[i + istep*2 + l] = out_data3[1];
-	                fr[i + istep*3 + l] = out_data4[1];
-	                
-	                // Imag Values
-	                fi[i] 				= out_data1[2];
-	                fi[i + istep] 		= out_data2[2];
-	                fi[i + istep*2] 	= out_data3[2];
-	                fi[i + istep*3] 	= out_data4[2];
-	                fi[i + 		   + l] = out_data1[0];
-	                fi[i + istep   + l] = out_data2[0];
-					fi[i + istep*2 + l] = out_data3[0];
-					fi[i + istep*3 + l] = out_data4[0];
+	                FFT_CALC_4_BUTTERFLIES_FROM_STATES_4_WITH_TWIDDLE(twiddle, shift);
+
+	                STORE_FROM_REAL_REG(0, 0);
+	                STORE_FROM_IMAG_REG(0, 0);
+	                COMPILER_BARRIER();
+	                STORE_FROM_REAL_REG(1, l);
+	                STORE_FROM_IMAG_REG(1, l);
+	                COMPILER_BARRIER();
+	                STORE_FROM_REAL_REG(2, l);
+	                STORE_FROM_IMAG_REG(2, l);
+	                COMPILER_BARRIER();
+	                STORE_FROM_REAL_REG(3, l);
+	                STORE_FROM_IMAG_REG(3, l);
+	                COMPILER_BARRIER();
+	                STORE_FROM_REAL_REG(4, l);
+	                STORE_FROM_IMAG_REG(4, l);
+	                COMPILER_BARRIER();
+	                STORE_FROM_REAL_REG(5, l);
+	                STORE_FROM_IMAG_REG(5, l);
+	                COMPILER_BARRIER();
+	                STORE_FROM_REAL_REG(6, l);
+	                STORE_FROM_IMAG_REG(6, l);
+	                COMPILER_BARRIER();
+	                STORE_FROM_REAL_REG(7, l);
+	                STORE_FROM_IMAG_REG(7, l);
+	                COMPILER_BARRIER();
 	            }
 	        }
         }

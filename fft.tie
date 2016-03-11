@@ -234,7 +234,7 @@ function [256:0] calc_4_butterflies([63:0] qr, [63:0] qi, [63:0] fr, [63:0] fi, 
 	assign calc_4_butterflies = {result1, result2, result3, result4};
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES {in AR twiddle, in BR shift} {in DataReal, in DataImag, out BUTTERFLY_RESULTS}
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES {in AR twiddle, in BR shift} {inout DataReal, inout DataImag}
 {
 	wire [63:0] even_r 	= get_even(DataReal);
 	wire [63:0] even_i 	= get_even(DataImag);
@@ -243,10 +243,18 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES {in AR twiddle, in BR shift} {in Da
 	
 	wire [127:0] tw_vector = {twiddle, twiddle, twiddle, twiddle};
 	
-	assign BUTTERFLY_RESULTS = calc_4_butterflies(even_r, even_i, odd_r, odd_i, tw_vector, shift);
+	//assign BUTTERFLY_RESULTS = calc_4_butterflies(even_r, even_i, odd_r, odd_i, tw_vector, shift);
+	
+	wire [255:0] bf_results = calc_4_butterflies(even_r, even_i, odd_r, odd_i, tw_vector, shift);
+	wire [127:0] imagValues 	= imagFrom256(bf_results);
+	wire [127:0] realValues 	= realFrom256(bf_results);
+	//assign DataReal = TIEmux(reverse, shuffle8x16(realValues), reverse_shuffle8x16(realValues));
+	//assign DataImag = TIEmux(reverse, shuffle8x16(imagValues), reverse_shuffle8x16(imagValues));
+	assign DataReal = reverse_shuffle8x16(realValues);
+	assign DataImag = reverse_shuffle8x16(imagValues);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2 {in vec4x16 twiddle, in BR shift} {in DataReal, in DataImag, out BUTTERFLY_RESULTS}
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2 {in vec4x16 twiddle, in BR shift} {inout DataReal, inout DataImag}
 {
 	wire [63:0] even_r 	= get_even(DataReal);
 	wire [63:0] even_i 	= get_even(DataImag);
@@ -255,7 +263,16 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2 {in vec4x16 twiddle, in BR shift}
 	
 	wire [127:0] tw_vector = {twiddle[63:32], twiddle[63:32], twiddle[31:0], twiddle[31:0]};
 	
-	assign BUTTERFLY_RESULTS = calc_4_butterflies(even_r, even_i, odd_r, odd_i, tw_vector, shift);
+	//assign BUTTERFLY_RESULTS = calc_4_butterflies(even_r, even_i, odd_r, odd_i, tw_vector, shift);
+	
+	
+	wire [255:0] bf_results = calc_4_butterflies(even_r, even_i, odd_r, odd_i, tw_vector, shift);
+	wire [127:0] imagValues 	= imagFrom256(bf_results);
+	wire [127:0] realValues 	= realFrom256(bf_results);
+	//assign DataReal = TIEmux(reverse, shuffle8x16(realValues), reverse_shuffle8x16(realValues));
+	//assign DataImag = TIEmux(reverse, shuffle8x16(imagValues), reverse_shuffle8x16(imagValues));
+	assign DataReal = reverse_shuffle8x16(realValues);
+	assign DataImag = reverse_shuffle8x16(imagValues);
 }
 
 operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_4 {in vect8x16 twiddle, in BR shift} {in DataReal, in DataImag, out BUTTERFLY_RESULTS}
@@ -429,3 +446,11 @@ operation FFT_SIMD_SHUFFLE_STORE_IMAG {in AR *addr, in AR offset, in BR reverse}
 	assign MemDataOut128 		= reverse_2_byte_wise(shuffledValues);
 }
 
+// skip BUTTERFLY_RESULTS Register? (use inout DataImag, inout DataReal)
+operation FFT_SHUFFLE {in BR reverse} {out DataImag, out DataReal, in BUTTERFLY_RESULTS}
+{
+	wire [127:0] imagValues 	= imagFrom256(BUTTERFLY_RESULTS);
+	wire [127:0] realValues 	= realFrom256(BUTTERFLY_RESULTS);
+	assign DataReal = TIEmux(reverse, shuffle8x16(realValues), reverse_shuffle8x16(realValues));
+	assign DataImag = TIEmux(reverse, shuffle8x16(imagValues), reverse_shuffle8x16(imagValues));
+}

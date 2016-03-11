@@ -37,14 +37,14 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
     	
         if(mr <= m) continue;
         
-        // swap contents of memory (real part)
+        // swap contents of memory (real part & imaginary part)
         tr = fr[m];
-        fr[m] = fr[mr];
-        fr[mr] = tr;
-        
-        // swap contents of memory (imaginary part)
         ti = fi[m];
+        
+        fr[m] = fr[mr];
         fi[m] = fi[mr];
+        
+        fr[mr] = tr;
         fi[mr] = ti;
     }
 	    

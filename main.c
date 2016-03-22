@@ -3,7 +3,7 @@
 #include		"fixed.h"
 #include 		"fft.h"
 
-#define M       5
+#define M       10
 #define NumberOfPoints       (1<<M) // 2^M
 
 fixed real[NumberOfPoints] __attribute__ ((section(".dram0.data")));
@@ -24,24 +24,13 @@ int squaredError(fixed array1[], fixed array2[], int n)
 	return sum;
 }
 
-void generateInputDataRef() 
+void generateInputData(fixed real_array[], fixed imag_array[])
 {	
 	int i;
     for(i=0; i < NumberOfPoints; i++)
     {
-        real_ref[i] = 1000*cos(i*2*3.1415926535/NumberOfPoints);
-        imag_ref[i] = i^2+1000;
-    }
-}
-
-
-void generateInputData() 
-{	
-	int i;
-    for(i=0; i < NumberOfPoints; i++)
-    {
-        real[i] = 1000*cos(i*2*3.1415926535/NumberOfPoints);
-        imag[i] = i^2+1000;
+    	real_array[i] = 1000*cos(i*2*3.1415926535/NumberOfPoints);
+    	imag_array[i] = 0;
     }
 }
 
@@ -50,17 +39,21 @@ void generateInputData()
  */
 void printData(fixed array1[], fixed array2[], int n)
 {
+#if M <= 4
     int i = 0;
     for (i=0; i<n; i++)
     {
     	printf("%d: %d, %d\n", i, array1[i], array2[i]);
     }
+#else
+    printf("Notice: Will not print data since too much sampling points\n");
+#endif
 }
 
 int main()
 {
-	generateInputData();
-	generateInputDataRef();
+	generateInputData(real, imag);
+	generateInputData(real_ref, imag_ref);
 	
     printf("\nInput Data\n");
 	printData(real, imag, NumberOfPoints);

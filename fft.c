@@ -137,46 +137,38 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         }
         else { // Stages greater than 3
         	
+        	WUR_REG_K(k);
+        	
         	for (i=0; i<n; i = i+istep)
         	{
-	        	for (m = i; m<l+i; m+=4)
+	        	for (m = i; m<l+i; m+=8)
 	        	{
+	        		vect8x16 real_1;
+					vect8x16 imag_1;
+					vect8x16 real_2;
+					vect8x16 imag_2;
+	        							
 	        		// Load Values
-					vect8x16 even_odd_r;
-					vect8x16 even_odd_i;
-	
-					// Green
-					FFT_SIMD_LOAD_EXTENDED(fr, m, even_odd_r, UPPER);
-					FFT_SIMD_LOAD_EXTENDED(fi, m, even_odd_i, UPPER);
-					FFT_SIMD_LOAD_EXTENDED(fr, m+l, even_odd_r, LOWER);
-					FFT_SIMD_LOAD_EXTENDED(fi, m+l, even_odd_i, LOWER);
+					FFT_SIMD_LOAD_INTERLEAVED(fr, m, real_1, real_2, UPPER);
+					FFT_SIMD_LOAD_INTERLEAVED(fi, m, imag_1, imag_2, UPPER);
+					
+					FFT_SIMD_LOAD_INTERLEAVED(fr, m+l, real_1, real_2, LOWER);
+					FFT_SIMD_LOAD_INTERLEAVED(fi, m+l, imag_1, imag_2, LOWER);
 	
 					// Calculate twiddle factors
-					
-					int j1 = m<<k;
-					int j2 = (m+1)<<k;
-					int j3 = (m+2)<<k;
-					int j4 = (m+3)<<k;
-					
-					fixed_complex tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
-					fixed_complex tw2 = FFT_CALC_TWIDDLE_FACTOR(j2, inverse, shift);
-					fixed_complex tw3 = FFT_CALC_TWIDDLE_FACTOR(j3, inverse, shift);
-					fixed_complex tw4 = FFT_CALC_TWIDDLE_FACTOR(j4, inverse, shift);
-					
-					fixed_complex twiddle_vect[] = {tw4, tw3, tw2, tw1};
+					vect8x16 twiddles1 = FFT_SIMD_CALC_TWIDDLE_FACTORS(m, inverse, shift);
+					vect8x16 twiddles2 = FFT_SIMD_CALC_TWIDDLE_FACTORS(m+4, inverse, shift);
 					
 					// Do the actual calculation
-					vect8x16 evenodd_r_out = FFT_CALC_4_BUTTERFLIES_REAL(even_odd_r, even_odd_i, *(vect8x16*)twiddle_vect, shift);
-					vect8x16 evenodd_i_out = FFT_CALC_4_BUTTERFLIES_IMAG(even_odd_r, even_odd_i, *(vect8x16*)twiddle_vect, shift);
-					
-					evenodd_r_out = FFT_SHUFFLE(evenodd_r_out);
-					evenodd_i_out = FFT_SHUFFLE(evenodd_i_out);
+					FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE(real_1, imag_1, twiddles1, shift);
+					FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE(real_2, imag_2, twiddles2, shift);
 					
 					// Store Values
-					FFT_SIMD_STORE_EXTENDED(fr, m, evenodd_r_out, UPPER);
-					FFT_SIMD_STORE_EXTENDED(fi, m, evenodd_i_out, UPPER);
-					FFT_SIMD_STORE_EXTENDED(fr, m+l, evenodd_r_out, LOWER);
-					FFT_SIMD_STORE_EXTENDED(fi, m+l, evenodd_i_out, LOWER);
+					FFT_SIMD_STORE_INTERLEAVED(fr, m, real_1, real_2, UPPER);
+					FFT_SIMD_STORE_INTERLEAVED(fi, m, imag_1, imag_2, UPPER);
+					
+					FFT_SIMD_STORE_INTERLEAVED(fr, m+l, real_1, real_2, LOWER);
+					FFT_SIMD_STORE_INTERLEAVED(fi, m+l, imag_1, imag_2, LOWER);
 	        	}
         	}
         }

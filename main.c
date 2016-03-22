@@ -3,7 +3,7 @@
 #include		"fixed.h"
 #include 		"fft.h"
 
-#define M       10
+#define M       5
 #define NumberOfPoints       (1<<M) // 2^M
 
 fixed real[NumberOfPoints] __attribute__ ((section(".dram0.data")));

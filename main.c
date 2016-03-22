@@ -3,7 +3,7 @@
 #include		"fixed.h"
 #include 		"fft.h"
 
-#define M       10
+#define M       5
 #define NumberOfPoints       (1<<M) // 2^M
 
 fixed real[NumberOfPoints] __attribute__ ((section(".dram0.data")));
@@ -30,7 +30,7 @@ void generateInputDataRef()
     for(i=0; i < NumberOfPoints; i++)
     {
         real_ref[i] = 1000*cos(i*2*3.1415926535/NumberOfPoints);
-        imag_ref[i] = 0;
+        imag_ref[i] = i^2+1000;
     }
 }
 
@@ -41,7 +41,7 @@ void generateInputData()
     for(i=0; i < NumberOfPoints; i++)
     {
         real[i] = 1000*cos(i*2*3.1415926535/NumberOfPoints);
-        imag[i] = 0;
+        imag[i] = i^2+1000;
     }
 }
 
@@ -82,10 +82,13 @@ int main()
     // when running the fft only. Only cycles for fix_fft() 
     // function calls are considered)
     fix_fft(real, imag, M, 1);
+    printf("\nFFT (reference)\n");
+    printData(real_ref, imag_ref, NumberOfPoints);
+    
     fix_fft_ref(real_ref, imag_ref, M, 1);
     
     
-    printf("\nIFFT (refernce)\n");
+    printf("\nIFFT (reference)\n");
     printData(real_ref, imag_ref, NumberOfPoints);
     
     printf("\nIFFT\n");

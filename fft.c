@@ -2,7 +2,7 @@
 #include "sinwave.h"
 #include <xtensa/tie/xt_booleans.h>
 #include <xtensa/tie/fft.h>
-#define COMPILER_BARRIER() asm volatile("" ::: "memory")
+#include <stdio.h>
 
 #define aligned_by_16 __attribute__ ((aligned(16)))
 #define aligned_by_8 __attribute__ ((aligned(8)))
@@ -11,6 +11,9 @@
 
 #define SHUFFLE 0
 #define REVERSE_SHUFFLE 1
+
+#define UPPER 1
+#define LOWER 0
 
 int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 {
@@ -133,77 +136,49 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 	        istep = 8;
         }
         else { // Stages greater than 3
- 
-	        // for each twiddle factor all butterfly nodes are computed (in inner for loop)
-	        for(m=0; m<l; m = m+1)
-	        {
-	            j = m << k; // j = m * (2^k)
-	            /* 0 <= j < N_WAVE/2 */
-	            
-	            // Calculate twiddle factor for this stage and stepwidth
-	            fixed_complex twiddle = FFT_CALC_TWIDDLE_FACTOR(j, inverse, shift); // TODO: use m,k instead of j
+        	
+        	for (i=0; i<n; i = i+istep)
+        	{
+	        	for (m = i; m<l+i; m+=4)
+	        	{
+	        		// Load Values
+					vect8x16 even_odd_r;
+					vect8x16 even_odd_i;
 	
-	            // all butterfly compute node executions with one specific twiddle factor
-	            for(i=m; i<n; i = CALC_I(i, l))
-	            {	                
-	                //// Implementation of FFT compute node (see task Fig.2)
-	                
-	                // Load fr_addr, fi_addr into special register
-	                SET_FR_FI_ADDR(fr, fi, i);
-	                
-	                LOAD_INTO_REAL_REG(0, 0);
-	                LOAD_INTO_IMAG_REG(0, 0);
-	                COMPILER_BARRIER();
-	                LOAD_INTO_REAL_REG(1, l);
-	                LOAD_INTO_IMAG_REG(1, l);
-	                COMPILER_BARRIER();
-	                LOAD_INTO_REAL_REG(2, l);
-	                LOAD_INTO_IMAG_REG(2, l);
-	                COMPILER_BARRIER();
-	                LOAD_INTO_REAL_REG(3, l);
-	                LOAD_INTO_IMAG_REG(3, l);
-	                COMPILER_BARRIER();
-					LOAD_INTO_REAL_REG(4, l);
-					LOAD_INTO_IMAG_REG(4, l);
-					COMPILER_BARRIER();
-					LOAD_INTO_REAL_REG(5, l);
-					LOAD_INTO_IMAG_REG(5, l);
-					COMPILER_BARRIER();
-					LOAD_INTO_REAL_REG(6, l);
-					LOAD_INTO_IMAG_REG(6, l);
-					COMPILER_BARRIER();
-					LOAD_INTO_REAL_REG(7, l);
-					LOAD_INTO_IMAG_REG(7, l);
-					COMPILER_BARRIER();
-	                
-	                FFT_CALC_4_BUTTERFLIES_FROM_STATES_4_WITH_TWIDDLE(twiddle, shift);
-
-	                STORE_FROM_REAL_REG(0, 0);
-	                STORE_FROM_IMAG_REG(0, 0);
-	                COMPILER_BARRIER();
-	                STORE_FROM_REAL_REG(1, l);
-	                STORE_FROM_IMAG_REG(1, l);
-	                COMPILER_BARRIER();
-	                STORE_FROM_REAL_REG(2, l);
-	                STORE_FROM_IMAG_REG(2, l);
-	                COMPILER_BARRIER();
-	                STORE_FROM_REAL_REG(3, l);
-	                STORE_FROM_IMAG_REG(3, l);
-	                COMPILER_BARRIER();
-	                STORE_FROM_REAL_REG(4, l);
-	                STORE_FROM_IMAG_REG(4, l);
-	                COMPILER_BARRIER();
-	                STORE_FROM_REAL_REG(5, l);
-	                STORE_FROM_IMAG_REG(5, l);
-	                COMPILER_BARRIER();
-	                STORE_FROM_REAL_REG(6, l);
-	                STORE_FROM_IMAG_REG(6, l);
-	                COMPILER_BARRIER();
-	                STORE_FROM_REAL_REG(7, l);
-	                STORE_FROM_IMAG_REG(7, l);
-	                COMPILER_BARRIER();
-	            }
-	        }
+					// Green
+					FFT_SIMD_LOAD_EXTENDED(fr, m, even_odd_r, UPPER);
+					FFT_SIMD_LOAD_EXTENDED(fi, m, even_odd_i, UPPER);
+					FFT_SIMD_LOAD_EXTENDED(fr, m+l, even_odd_r, LOWER);
+					FFT_SIMD_LOAD_EXTENDED(fi, m+l, even_odd_i, LOWER);
+	
+					// Calculate twiddle factors
+					
+					int j1 = m<<k;
+					int j2 = (m+1)<<k;
+					int j3 = (m+2)<<k;
+					int j4 = (m+3)<<k;
+					
+					fixed_complex tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
+					fixed_complex tw2 = FFT_CALC_TWIDDLE_FACTOR(j2, inverse, shift);
+					fixed_complex tw3 = FFT_CALC_TWIDDLE_FACTOR(j3, inverse, shift);
+					fixed_complex tw4 = FFT_CALC_TWIDDLE_FACTOR(j4, inverse, shift);
+					
+					fixed_complex twiddle_vect[] = {tw4, tw3, tw2, tw1};
+					
+					// Do the actual calculation
+					vect8x16 evenodd_r_out = FFT_CALC_4_BUTTERFLIES_REAL(even_odd_r, even_odd_i, *(vect8x16*)twiddle_vect, shift);
+					vect8x16 evenodd_i_out = FFT_CALC_4_BUTTERFLIES_IMAG(even_odd_r, even_odd_i, *(vect8x16*)twiddle_vect, shift);
+					
+					evenodd_r_out = FFT_SHUFFLE(evenodd_r_out);
+					evenodd_i_out = FFT_SHUFFLE(evenodd_i_out);
+					
+					// Store Values
+					FFT_SIMD_STORE_EXTENDED(fr, m, evenodd_r_out, UPPER);
+					FFT_SIMD_STORE_EXTENDED(fi, m, evenodd_i_out, UPPER);
+					FFT_SIMD_STORE_EXTENDED(fr, m+l, evenodd_r_out, LOWER);
+					FFT_SIMD_STORE_EXTENDED(fi, m+l, evenodd_i_out, LOWER);
+	        	}
+        	}
         }
         --k;
         l = istep;
@@ -317,6 +292,7 @@ int fix_fft_ref(fixed fr[], fixed fi[], int m, int inverse)
                 wr >>= 1;
                 wi >>= 1;
             }
+                        
             for(i=m; i<n; i+=istep)
             {
             	

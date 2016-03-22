@@ -70,7 +70,6 @@ table SINWAVE 16 512 {
 // Register
 //
 
-regfile vec4x16 64 8 vrf
 regfile vect8x16 128 8 v2rf
 
 //
@@ -130,11 +129,6 @@ function [15:0] abs([15:0] value)
 // Operations
 //
 
-operation GET_SIN_VALUE {in AR idx, out AR sin_value} {}
-{
-	assign sin_value = get_sin_value(idx);
-}
-
 function [31:0] calc_twiddle_factor([31:0] j, [0:0] inverse, [0:0] shift)
 {
 	wire [9:0] idx = TIEadd(j, 256, 1'b0);
@@ -154,19 +148,24 @@ operation FFT_CALC_TWIDDLE_FACTOR {in AR j, in BR inverse, in BR shift, out AR t
 	assign twiddle = calc_twiddle_factor(j, inverse, shift);
 }
 
-operation FFT_CALC_TWIDDLE_FACTORx4 {in AR k, in BR inverse, in BR shift, out vect8x16 twiddle_vector} {}
+function [127:0] calc_4_twiddle_factors ([31:0] m, [31:0] k, inverse, shift) shared
 {
-	wire [31:0] j1 = 0;
-	wire [31:0] j2 = 1 << k;
-	wire [31:0] j3 = 2 << k;
-	wire [31:0] j4 = 3 << k;
+	wire [31:0] j1 = m 	   << k;
+	wire [31:0] j2 = (m+1) << k;
+	wire [31:0] j3 = (m+2) << k;
+	wire [31:0] j4 = (m+3) << k;
 
 	wire [31:0] twiddle1 = calc_twiddle_factor(j1, inverse, shift);
 	wire [31:0] twiddle2 = calc_twiddle_factor(j2, inverse, shift);
 	wire [31:0] twiddle3 = calc_twiddle_factor(j3, inverse, shift);
 	wire [31:0] twiddle4 = calc_twiddle_factor(j4, inverse, shift);
 	
-	assign twiddle_vector = {twiddle1, twiddle2, twiddle3, twiddle4};
+	assign calc_4_twiddle_factors = {twiddle1, twiddle2, twiddle3, twiddle4};
+}
+
+operation FFT_CALC_TWIDDLE_FACTORx4 {in AR k, in BR inverse, in BR shift, out vect8x16 twiddle_vector} {}
+{
+	assign twiddle_vector = calc_4_twiddle_factors(0, k, inverse, shift); 
 }
 
 state REG_K 32 32'b0 add_read_write
@@ -175,20 +174,10 @@ operation FFT_SIMD_CALC_TWIDDLE_FACTORS
 {in AR m, in BR inverse, in BR shift, out vect8x16 twiddle_vector} 
 {in REG_K}
 {
-	wire [31:0] j1 = m 	   << REG_K;
-	wire [31:0] j2 = (m+1) << REG_K;
-	wire [31:0] j3 = (m+2) << REG_K;
-	wire [31:0] j4 = (m+3) << REG_K;
-
-	wire [31:0] twiddle1 = calc_twiddle_factor(j1, inverse, shift);
-	wire [31:0] twiddle2 = calc_twiddle_factor(j2, inverse, shift);
-	wire [31:0] twiddle3 = calc_twiddle_factor(j3, inverse, shift);
-	wire [31:0] twiddle4 = calc_twiddle_factor(j4, inverse, shift);
-	
-	assign twiddle_vector = {twiddle1, twiddle2, twiddle3, twiddle4};
+	assign twiddle_vector = calc_4_twiddle_factors(m, REG_K, inverse, shift); 
 }
 
-state twiddle_vector_reg 128 128'b0 add_read_write
+state twiddle_vector_reg 128 128'b0
 
 operation FFT_CALC_TWIDDLE_FACTORx4_TO_STATES {in AR k, in BR inverse, in BR shift} {out twiddle_vector_reg}
 {
@@ -273,27 +262,7 @@ function [63:0] calc_butterfly ([31:0] even, [31:0] odd, [31:0] twiddle, [0:0] s
 	assign calc_butterfly = {even_out, odd_out};
 }
 
-operation FFT_CALC_BUTTERFLY {in AR even, in AR odd, in AR twiddle, in BR shift, out vec4x16 even_odd_out} {}
-{
-	assign even_odd_out = calc_butterfly(even, odd, twiddle, shift);
-}
-
-operation FFT_CALC_2_BUTTERFLIES {in vec4x16 even, in vec4x16 odd, in AR tw, in BR shift, out vect8x16 even_odd_out} {}
-{
-	wire [31:0] even1 	= even[63:32];
-	wire [31:0] even2 	= even[31:0];
-	
-	wire [31:0] odd1	= odd[63:32];
-	wire [31:0] odd2	= odd[31:0];
-	
-	// result = {even, odd}
-	wire [63:0] result1 = calc_butterfly(even1, odd1, tw, shift);
-	wire [63:0] result2 = calc_butterfly(even2, odd2, tw, shift);
-	
-	assign even_odd_out = {result1, result2};
-}
-
-state BUTTERFLY_RESULTS 256 256'b0 add_read_write
+state BUTTERFLY_RESULTS 256 256'b0
 
 function [255:0] calc_4_butterflies([63:0] qr, [63:0] qi, [63:0] fr, [63:0] fi, [127:0] tw_vec, [0:0] shift)
 {
@@ -447,8 +416,8 @@ function [127:0] imagFrom256([255:0] vector)
 								};
 }
 
-state DataReal 128 128'b0 add_read_write
-state DataImag 128 128'b0 add_read_write
+state DataReal 128 128'b0
+state DataImag 128 128'b0
 
 operation FFT_SIMD_LOAD_REAL {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out DataReal}
 {
@@ -463,9 +432,9 @@ operation FFT_SIMD_LOAD_IMAG {in AR *addr, in AR offset}{out VAddr, in MemDataIn
 }
 
 format flix64 64 {slot_0, slot_1, slot_2}
-slot_opcodes slot_0 {STORE_FROM_REAL_REG, LOAD_INTO_REAL_REG,LOAD_INTO_IMAG_REG, FFT_CALC_TWIDDLE_FACTORx4, FFT_CALC_BUTTERFLY, st.vec4x16, FFT_CALC_TWIDDLE_FACTORx4, L32I, L16SI, S16I, FFT_SIMD_LOAD, FFT_SIMD_LOAD_REAL, FFT_SIMD_LOAD_IMAG, FFT_SIMD_SHUFFLE_LOAD_REAL, FFT_SIMD_SHUFFLE_LOAD_IMAG, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
-slot_opcodes slot_1 {FFT_CALC_TWIDDLE_FACTORx4, ADD.N, ADDX2, FFT_CALC_BUTTERFLY}
-slot_opcodes slot_2 {STORE_FROM_IMAG_REG, LOAD_INTO_REAL_REG,LOAD_INTO_IMAG_REG, FFT_CALC_TWIDDLE_FACTORx4, FFT_CALC_BUTTERFLY, st.vec4x16, FFT_CALC_TWIDDLE_FACTORx4, L32I, L16SI, S16I, FFT_SIMD_LOAD, FFT_SIMD_LOAD_REAL, FFT_SIMD_LOAD_IMAG, FFT_SIMD_SHUFFLE_LOAD_REAL, FFT_SIMD_SHUFFLE_LOAD_IMAG, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
+slot_opcodes slot_0 {FFT_CALC_TWIDDLE_FACTORx4, L32I, L16SI, S16I, FFT_SIMD_LOAD, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
+slot_opcodes slot_1 {FFT_CALC_TWIDDLE_FACTORx4, ADD.N, ADDX2}
+slot_opcodes slot_2 {FFT_CALC_TWIDDLE_FACTORx4, L32I, L16SI, S16I, FFT_SIMD_LOAD, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
 
 // !!!
 // Always be careful when reading/writing to memory, it is in reverse order
@@ -512,11 +481,6 @@ function [127:0] shuffle8x16 ([127:0] vector8x16)
 	assign shuffle8x16 = {v1, v5, v2, v6, v3, v7, v4, v8};
 }
 
-operation FFT_SHUFFLE {in vect8x16 input, out vect8x16 output} {}
-{
-	assign output = reverse_shuffle8x16(input);
-}
-
 function [63:0] upper ([127:0] vector8x16)
 {
 	wire [15:0] v1 = vector8x16[127:112];
@@ -537,21 +501,9 @@ function [63:0] lower ([127:0] vector8x16)
 	assign lower = {v5, v6, v7, v8};
 }
 
-operation FFT_SIMD_SHUFFLE_LOAD_REAL {in AR *addr, in AR offset, in BR reverse} {out VAddr, in MemDataIn128, out DataReal}
-{
-	assign VAddr =  addr + {offset[30:0], 1'b0};
-	wire [127:0] reverseDataIn = reverse_2_byte_wise(MemDataIn128);
-	assign DataReal = TIEmux(reverse, shuffle8x16(reverseDataIn), reverse_shuffle8x16(reverseDataIn));
-}
-
-operation FFT_SIMD_SHUFFLE_LOAD_IMAG {in AR *addr, in AR offset, in BR reverse} {out VAddr, in MemDataIn128, out DataImag}
-{
-	assign VAddr =  addr + {offset[30:0], 1'b0};
-	wire [127:0] reverseDataIn = reverse_2_byte_wise(MemDataIn128);
-	assign DataImag = TIEmux(reverse, shuffle8x16(reverseDataIn), reverse_shuffle8x16(reverseDataIn));
-}
-
-operation FFT_SIMD_SHUFFLE_STORE_REAL {in AR *addr, in AR offset, in BR reverse} {out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
+operation FFT_SIMD_SHUFFLE_STORE_REAL 
+{in AR *addr, in AR offset, in BR reverse} 
+{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
 {
 	assign VAddr 				= addr + {offset[30:0], 1'b0};
 	wire [127:0] realValues 	= realFrom256(BUTTERFLY_RESULTS);
@@ -559,7 +511,9 @@ operation FFT_SIMD_SHUFFLE_STORE_REAL {in AR *addr, in AR offset, in BR reverse}
 	assign MemDataOut128 		= reverse_2_byte_wise(shuffledValues);
 }
 
-operation FFT_SIMD_SHUFFLE_STORE_IMAG {in AR *addr, in AR offset, in BR reverse} {out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
+operation FFT_SIMD_SHUFFLE_STORE_IMAG 
+{in AR *addr, in AR offset, in BR reverse} 
+{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
 {
 	assign VAddr 				= addr + {offset[30:0], 1'b0};
 	wire [127:0] imagValues 	= imagFrom256(BUTTERFLY_RESULTS);
@@ -567,7 +521,9 @@ operation FFT_SIMD_SHUFFLE_STORE_IMAG {in AR *addr, in AR offset, in BR reverse}
 	assign MemDataOut128 		= reverse_2_byte_wise(shuffledValues);
 }
 
-operation FFT_SIMD_LOAD {in AR *addr, in AR offset, out vect8x16 output} {out VAddr, in MemDataIn128}
+operation FFT_SIMD_LOAD 
+{in AR *addr, in AR offset, out vect8x16 output} 
+{out VAddr, in MemDataIn128}
 {
 	assign VAddr = addr + {offset[30:0], 1'b0};
 	assign output = reverse_2_byte_wise(MemDataIn128);
@@ -638,51 +594,4 @@ operation FFT_CHECK_SHIFT_CONDITION {in vect8x16 j_vector, in vect8x16 m_vector,
 							| 	greaterThan16383(m6) 
 							| 	greaterThan16383(m7) 
 							| 	greaterThan16383(m8);
-}
-
-operation CALC_I {in AR i_in, in AR l, out AR i_out} {}
-{
-	wire [31:0] shifted_l = {l[28:0], 3'b0};
-	assign i_out = TIEadd(i_in, shifted_l, 1'b0);
-}
-
-state fr_i_addr 32 32'b0 add_read_write
-state fi_i_addr 32 32'b0 add_read_write
-
-operation SET_FR_FI_ADDR {in AR *addr_fr, in AR *addr_fi, in AR offset} {out fr_i_addr, out fi_i_addr}
-{
-	assign fr_i_addr = TIEadd(addr_fr, {offset[30:0], 1'b0}, 1'b0);
-	assign fi_i_addr = TIEadd(addr_fi, {offset[30:0], 1'b0}, 1'b0);
-}
-
-immediate_range immediate 0 7 1
-
-operation LOAD_INTO_REAL_REG {in immediate factor, in AR offset} {out VAddr, in MemDataIn16, inout DataReal, in fr_i_addr}
-{
-	wire [31:0]	factor_offset		= TIEmul(factor, offset, 1'b0);
-	assign VAddr 		= TIEadd(fr_i_addr, {factor_offset[30:0], 1'b0}, 1'b0);
-	assign DataReal = {DataReal[111:0], MemDataIn16};
-}
-
-operation LOAD_INTO_IMAG_REG {in immediate factor, in AR offset} {out VAddr, in MemDataIn16, inout DataImag, in fi_i_addr}
-{
-	wire [31:0]	factor_offset		= TIEmul(factor, offset, 1'b0);
-	assign VAddr 		= TIEadd(fi_i_addr, {factor_offset[30:0], 1'b0}, 1'b0);
-	assign DataImag = {DataImag[111:0], MemDataIn16};
-}
-
-operation STORE_FROM_REAL_REG {in immediate factor, in AR offset} {out VAddr, out MemDataOut16, inout DataReal, in fr_i_addr}
-{
-	wire [31:0]	factor_offset		= TIEmul(factor, offset, 1'b0);
-	assign VAddr 		= TIEadd(fr_i_addr, {factor_offset[30:0], 1'b0}, 1'b0);
-	assign MemDataOut16 = DataReal[127:112];
-	assign DataReal		= {DataReal[111:0], 16'b0};
-}
-
-operation STORE_FROM_IMAG_REG {in immediate factor, in AR offset} {out VAddr, out MemDataOut16, inout DataImag, in fi_i_addr}
-{
-	wire [31:0]	factor_offset		= TIEmul(factor, offset, 1'b0);
-	assign VAddr 		= TIEadd(fi_i_addr, {factor_offset[30:0], 1'b0}, 1'b0);
-	assign MemDataOut16 = DataImag[127:112];
-	assign DataImag		= {DataImag[111:0], 16'b0};
 }

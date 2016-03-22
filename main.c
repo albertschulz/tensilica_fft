@@ -30,8 +30,8 @@ void generateInputData(fixed real_array[], fixed imag_array[])
 	int i;
     for(i=0; i < NumberOfPoints; i++)
     {
-        real_ref[i] = 1000*cos(i*2*3.1415926535/NumberOfPoints);
-        imag_ref[i] = 0;
+    	real_array[i] = 1000*cos(i*2*3.1415926535/NumberOfPoints);
+    	imag_array[i] = 0;
     }
 }
 
@@ -98,8 +98,8 @@ int main()
 	printf("\nDIF Results\n");
 	
 	
-	generateInputData();
-	generateInputDataRef();
+	generateInputData(real, imag);
+	generateInputData(real_ref, imag_ref);
 	
     printf("\nInput Data\n");
 	printData(real, imag, NumberOfPoints);

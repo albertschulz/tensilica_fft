@@ -473,17 +473,6 @@ operation FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE
 	wire [63:0] odd_r 	= real[63:0];
 	wire [63:0] odd_i 	= imag[63:0];
 		
-	assign result_r = realFrom256(calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, twiddle, shift));
-}
-
-
-operation FFT_CALC_4_BUTTERFLIES_IMAG {in vect8x16 real, in vect8x16 imag, in vect8x16 twiddle, in BR shift, out vect8x16 result_i} {}
-{
-	wire [63:0] even_r 	= real[127:64];
-	wire [63:0] even_i 	= imag[127:64];
-	wire [63:0] odd_r 	= real[63:0];
-	wire [63:0] odd_i 	= imag[63:0];
-			
 	wire [255:0] bf_results = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, twiddle, shift);
 		
 	assign real = reverse_shuffle8x16(realFrom256(bf_results));
@@ -717,4 +706,18 @@ operation FFT_CHECK_SHIFT_CONDITION {in vect8x16 j_vector, in vect8x16 m_vector,
 							| 	greaterThan16383(m6) 
 							| 	greaterThan16383(m7) 
 							| 	greaterThan16383(m8);
+}
+
+operation FFT_SIMD_SHUFFLE_LOAD_REAL {in AR *addr, in AR offset, in BR reverse} {out VAddr, in MemDataIn128, out DataReal}
+{
+	assign VAddr =  addr + {offset[30:0], 1'b0};
+	wire [127:0] reverseDataIn = reverse_2_byte_wise(MemDataIn128);
+	assign DataReal = TIEmux(reverse, shuffle8x16(reverseDataIn), reverse_shuffle8x16(reverseDataIn));
+}
+
+operation FFT_SIMD_SHUFFLE_LOAD_IMAG {in AR *addr, in AR offset, in BR reverse} {out VAddr, in MemDataIn128, out DataImag}
+{
+	assign VAddr =  addr + {offset[30:0], 1'b0};
+	wire [127:0] reverseDataIn = reverse_2_byte_wise(MemDataIn128);
+	assign DataImag = TIEmux(reverse, shuffle8x16(reverseDataIn), reverse_shuffle8x16(reverseDataIn));
 }

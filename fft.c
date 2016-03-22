@@ -440,42 +440,7 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
         	{
 	        	for (m = i; m<l+i; m+=4)
 	        	{
-	        		// Load Values
-					vect8x16 even_odd_r;
-					vect8x16 even_odd_i;
-	
-					// Green
-					FFT_SIMD_LOAD_EXTENDED(fr, m, even_odd_r, UPPER);
-					FFT_SIMD_LOAD_EXTENDED(fi, m, even_odd_i, UPPER);
-					FFT_SIMD_LOAD_EXTENDED(fr, m+l, even_odd_r, LOWER);
-					FFT_SIMD_LOAD_EXTENDED(fi, m+l, even_odd_i, LOWER);
-	
-					// Calculate twiddle factors
-					
-					int j1 = m<<k;
-					int j2 = (m+1)<<k;
-					int j3 = (m+2)<<k;
-					int j4 = (m+3)<<k;
-					
-					fixed_complex tw1 = FFT_CALC_TWIDDLE_FACTOR(j1, inverse, shift);
-					fixed_complex tw2 = FFT_CALC_TWIDDLE_FACTOR(j2, inverse, shift);
-					fixed_complex tw3 = FFT_CALC_TWIDDLE_FACTOR(j3, inverse, shift);
-					fixed_complex tw4 = FFT_CALC_TWIDDLE_FACTOR(j4, inverse, shift);
-					
-					fixed_complex twiddle_vect[] = {tw4, tw3, tw2, tw1};
-					
-					// Do the actual calculation
-					vect8x16 evenodd_r_out = FFT_CALC_4_BUTTERFLIES_REAL(even_odd_r, even_odd_i, *(vect8x16*)twiddle_vect, shift);
-					vect8x16 evenodd_i_out = FFT_CALC_4_BUTTERFLIES_IMAG(even_odd_r, even_odd_i, *(vect8x16*)twiddle_vect, shift);
-					
-					evenodd_r_out = FFT_SHUFFLE(evenodd_r_out);
-					evenodd_i_out = FFT_SHUFFLE(evenodd_i_out);
-					
-					// Store Values
-					FFT_SIMD_STORE_EXTENDED(fr, m, evenodd_r_out, UPPER);
-					FFT_SIMD_STORE_EXTENDED(fi, m, evenodd_i_out, UPPER);
-					FFT_SIMD_STORE_EXTENDED(fr, m+l, evenodd_r_out, LOWER);
-					FFT_SIMD_STORE_EXTENDED(fi, m+l, evenodd_i_out, LOWER);
+	        		// do something
 	        	}
         	}
         }

@@ -181,17 +181,7 @@ state twiddle_vector_reg 128 128'b0
 
 operation FFT_CALC_TWIDDLE_FACTORx4_TO_STATES {in AR k, in BR inverse, in BR shift} {out twiddle_vector_reg}
 {
-	wire [31:0] j1 = 0;
-	wire [31:0] j2 = 1 << k;
-	wire [31:0] j3 = 2 << k;
-	wire [31:0] j4 = 3 << k;
-
-	wire [31:0] twiddle1 = calc_twiddle_factor(j1, inverse, shift);
-	wire [31:0] twiddle2 = calc_twiddle_factor(j2, inverse, shift);
-	wire [31:0] twiddle3 = calc_twiddle_factor(j3, inverse, shift);
-	wire [31:0] twiddle4 = calc_twiddle_factor(j4, inverse, shift);
-	
-	assign twiddle_vector_reg = {twiddle1, twiddle2, twiddle3, twiddle4};
+	assign twiddle_vector_reg = calc_4_twiddle_factors(0, k, inverse, shift); 
 }
 
 operation FFT_REVERSE_BITS {in AR d, in AR size, out AR reversed_data} {}
@@ -264,7 +254,7 @@ function [63:0] calc_butterfly ([31:0] even, [31:0] odd, [31:0] twiddle, [0:0] s
 
 state BUTTERFLY_RESULTS 256 256'b0
 
-function [255:0] calc_4_butterflies([63:0] qr, [63:0] qi, [63:0] fr, [63:0] fi, [127:0] tw_vec, [0:0] shift)
+function [255:0] calc_4_butterflies([63:0] qr, [63:0] qi, [63:0] fr, [63:0] fi, [127:0] tw_vec, [0:0] shift) shared
 {
 	wire [31:0] tw1 = tw_vec[127:96];
 	wire [31:0] tw2 = tw_vec[95:64];

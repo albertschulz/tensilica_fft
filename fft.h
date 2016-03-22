@@ -11,7 +11,11 @@
  *	size of data = 2^m
  *  set inverse to 0=dft, 1=idft
  */
-int fix_fft(fixed *fr, fixed *fi, int m, int inverse);
+int fix_fft_dit(fixed *fr, fixed *fi, int m, int inverse);
+int fix_fft_dit_ref(fixed *fr, fixed *fi, int m, int inverse);
+
+int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse);
+int fix_fft_dif_ref(fixed fr[], fixed fi[], int m, int inverse);
 
 #endif //FFT_H
 

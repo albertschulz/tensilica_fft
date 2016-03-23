@@ -88,39 +88,20 @@ int fix_fft_dit(fixed fr[], fixed fi[], int m, int inverse)
         	
 	        for (i=0; i<n; i = i+8)
 	        {
-	        	//
-	        	// 1. Stage
-	        	// 
 	        	k = LOG2_N_WAVE-1;
 	                   
-	        	
         		real = FFT_SIMD_LOAD(fr, i);
         		imag = FFT_SIMD_LOAD(fi, i);
 				
-        		// Butterfly (+ shuffle integrated) Berechnung aus States mit gleichen Twiddle Faktoren		
-        		FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
-        		FFT_CALC_4_BUTTERFLIES_FROM_STATES(shift, real, imag);
+        		FFT_DIT_CALC_FIRST_STAGE(k, inverse, shift, real, imag);
 
-				//
-				// 2. Stage
-				//
-				
-	        	// 2 Twiddle Faktoren berechnen
 				--k;
 				
-				// Butterfly (+ shuffle integrated) Berechnung aus States mit unterschiedlichen Twiddle Faktoren
-				FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
-				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2(shift, real, imag);
+				FFT_DIT_CALC_SECOND_STAGE(k, inverse, shift, real, imag);
                 
-				//
-		        // 3. Stage
-				// 
-		        
 				--k;
 	        	
-				// Butterfly Berechnung aus States mit 4 unterschiedlichen Twiddle Faktoren
-				FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
-				FFT_CALC_4_BUTTERFLIES_FROM_STATES_4(shift, real, imag);
+				FFT_DIT_CALC_THIRD_STAGE(k, inverse, shift, real, imag);
                 
                 // Werte speichern und shuffeln
 				FFT_SIMD_STORE_SHUFFLED(fr, i, real, REVERSE_SHUFFLE);
@@ -147,13 +128,9 @@ int fix_fft_dit(fixed fr[], fixed fi[], int m, int inverse)
 					FFT_SIMD_LOAD_INTERLEAVED(fr, m+l, real_1, real_2, LOWER);
 					FFT_SIMD_LOAD_INTERLEAVED(fi, m+l, imag_1, imag_2, LOWER);
 	
-					// Calculate twiddle factors
-					vect8x16 twiddles1 = FFT_SIMD_CALC_TWIDDLE_FACTORS(m, inverse, shift);
-					vect8x16 twiddles2 = FFT_SIMD_CALC_TWIDDLE_FACTORS(m+4, inverse, shift);
-					
 					// Do the actual calculation
-					FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIT(real_1, imag_1, twiddles1, shift);
-					FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIT(real_2, imag_2, twiddles2, shift);
+					FFT_DIT_CALC_STAGE(real_1, imag_1, shift, m, inverse);
+					FFT_DIT_CALC_STAGE(real_2, imag_2, shift, m+4, inverse);
 					
 					// Store Values
 					FFT_SIMD_STORE_INTERLEAVED(fr, m, real_1, real_2, UPPER);
@@ -230,37 +207,19 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
 	        	register vect8x16 real, imag;
 	        	
 	        	k = 7;
-	        	//
-	        	// Thirst Last Stage
-	        	// 
-	        	
+
 	        	real = FFT_SIMD_LOAD_SHUFFLED(fr, i, SHUFFLE);
 	        	imag = FFT_SIMD_LOAD_SHUFFLED(fi, i, SHUFFLE);
 				
+				FFT_DIF_CALC_THIRD_LAST_STAGE(k, inverse, shift, real, imag);
 
-				// Butterfly Berechnung aus States mit 4 unterschiedlichen Twiddle Faktoren
-				FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
-				FFT_CALC_4_BUTTERFLIES_FROM_STATES_4_SHUFFLE(shift, real, imag);
-
-				//
-				// Second Last Stage
-				//
-				
-	        	// 2 Twiddle Faktoren berechnen
 				++k;
 				
-				// Butterfly (+ shuffle integrated) Berechnung aus States mit unterschiedlichen Twiddle Faktoren
-				FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
-				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2_SHUFFLE(shift, real, imag);
+				FFT_DIF_CALC_SECOND_LAST_STAGE(k, inverse, shift, real, imag);
                 
-				//
-		        // Last Stage
-				// 
-				
 				++k;
-        		// Butterfly (+ shuffle integrated) Berechnung aus States mit gleichen Twiddle Faktoren		
-        		FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
-        		FFT_CALC_4_BUTTERFLIES_FROM_STATES_NOSHUFFLE(shift, real, imag);
+
+        		FFT_DIF_CALC_LAST_STAGE(k, inverse, shift, real, imag);
 
                 // Werte speichern und shuffeln
         		FFT_SIMD_STORE(fr, i, real);
@@ -290,13 +249,9 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
 					FFT_SIMD_LOAD_INTERLEAVED(fr, m+l, real_1, real_2, LOWER);
 					FFT_SIMD_LOAD_INTERLEAVED(fi, m+l, imag_1, imag_2, LOWER);
 	
-					// Calculate twiddle factors
-					vect8x16 twiddles1 = FFT_SIMD_CALC_TWIDDLE_FACTORS(m, inverse, shift);
-					vect8x16 twiddles2 = FFT_SIMD_CALC_TWIDDLE_FACTORS(m+4, inverse, shift);
-					
 					// Do the actual calculation
-					FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIF(real_1, imag_1, twiddles1, shift);
-					FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIF(real_2, imag_2, twiddles2, shift);
+					FFT_DIF_CALC_STAGE(real_1, imag_1, shift, m, inverse);
+					FFT_DIF_CALC_STAGE(real_2, imag_2, shift, m+4, inverse);
 					
 					// Store Values
 					FFT_SIMD_STORE_INTERLEAVED(fr, m, real_1, real_2, UPPER);

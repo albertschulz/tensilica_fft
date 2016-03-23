@@ -300,22 +300,6 @@ function [127:0] calc_4_twiddle_factors ([31:0] m, [31:0] k, inverse, shift) sha
 
 state REG_K 32 32'b0 add_read_write
 
-operation FFT_SIMD_CALC_TWIDDLE_FACTORS 
-{in AR m, in BR inverse, in BR shift, out vect8x16 twiddle_vector} 
-{in REG_K}
-{
-	assign twiddle_vector = calc_4_twiddle_factors(m, REG_K, inverse, shift); 
-}
-
-state twiddle_vector_reg 128 128'b0
-
-operation FFT_CALC_TWIDDLE_FACTORx4_TO_STATES 
-{in AR k, in BR inverse, in BR shift} 
-{out twiddle_vector_reg}
-{
-	assign twiddle_vector_reg = calc_4_twiddle_factors(0, k, inverse, shift); 
-}
-
 operation FFT_REVERSE_BITS {in AR d, in AR size, out AR reversed_data} {}
 {
     assign reversed_data = {
@@ -426,16 +410,17 @@ function [255:0] calc_4_butterflies_dit([63:0] qr, [63:0] qi, [63:0] fr, [63:0] 
 	assign calc_4_butterflies_dit = {result1, result2, result3, result4};
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES
-{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
-{in twiddle_vector_reg}
+operation FFT_DIT_CALC_FIRST_STAGE
+{in AR k, in BR inverse, in BR shift, inout vect8x16 real, inout vect8x16 imag} {}
 {
 	wire [63:0] even_r 	= get_even(real);
 	wire [63:0] even_i 	= get_even(imag);
 	wire [63:0] odd_r 	= get_odd(real);
 	wire [63:0] odd_i 	= get_odd(imag);
 	
-	wire [31:0] twiddle = twiddle_vector_reg[127:96];
+	wire [127:0] twiddle_factors = calc_4_twiddle_factors(0, k, inverse, shift);
+	
+	wire [31:0] twiddle = twiddle_factors[127:96];
 	
 	wire [127:0] tw_vector = {twiddle, twiddle, twiddle, twiddle};
 		
@@ -447,16 +432,18 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES
 	assign imag = reverse_shuffle8x16(imagValues);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2 
-{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
-{in twiddle_vector_reg}
+operation FFT_DIT_CALC_SECOND_STAGE 
+{in AR k, in BR inverse, in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{}
 {
 	wire [63:0] even_r 	= get_even(real);
 	wire [63:0] even_i 	= get_even(imag);
 	wire [63:0] odd_r 	= get_odd(real);
 	wire [63:0] odd_i 	= get_odd(imag);
 	
-	wire [63:0] twiddle = twiddle_vector_reg[127:64];
+	wire [127:0] twiddle_factors = calc_4_twiddle_factors(0, k, inverse, shift);
+	
+	wire [63:0] twiddle = twiddle_factors[127:64];
 	
 	wire [127:0] tw_vector = {twiddle[63:32], twiddle[63:32], twiddle[31:0], twiddle[31:0]};	
 	
@@ -468,31 +455,35 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2
 	assign imag = reverse_shuffle8x16(imagValues);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_4 
-{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
-{in twiddle_vector_reg}
+operation FFT_DIT_CALC_THIRD_STAGE 
+{in AR k, in BR inverse, in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{}
 {
 	wire [63:0] even_r 	= get_even(real);
 	wire [63:0] even_i 	= get_even(imag);
 	wire [63:0] odd_r 	= get_odd(real);
 	wire [63:0] odd_i 	= get_odd(imag);
 	
-	wire [255:0] bf_results = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, twiddle_vector_reg, shift);
+	wire [127:0] twiddle_factors = calc_4_twiddle_factors(0, k, inverse, shift);
+	
+	wire [255:0] bf_results = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, twiddle_factors, shift);
 	
 	assign real = realFrom256(bf_results);
 	assign imag	= imagFrom256(bf_results);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_4_SHUFFLE 
-{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
-{in twiddle_vector_reg}
+operation FFT_DIF_CALC_THIRD_LAST_STAGE 
+{in AR k, in BR inverse, in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{}
 {
 	wire [63:0] even_r 	= get_even(real);
 	wire [63:0] even_i 	= get_even(imag);
 	wire [63:0] odd_r 	= get_odd(real);
 	wire [63:0] odd_i 	= get_odd(imag);
+	
+	wire [127:0] twiddle_factors = calc_4_twiddle_factors(0, k, inverse, shift);
 		
-	wire [255:0] bf_results		= calc_4_butterflies_dif(even_r, even_i, odd_r, odd_i, twiddle_vector_reg, shift);
+	wire [255:0] bf_results		= calc_4_butterflies_dif(even_r, even_i, odd_r, odd_i, twiddle_factors, shift);
 	wire [127:0] imagValues 	= imagFrom256(bf_results);
 	wire [127:0] realValues 	= realFrom256(bf_results);
 
@@ -500,16 +491,18 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_4_SHUFFLE
 	assign imag = shuffle8x16(imagValues);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2_SHUFFLE 
-{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
-{in twiddle_vector_reg}
+operation FFT_DIF_CALC_SECOND_LAST_STAGE 
+{in AR k, in BR inverse, in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{}
 {
 	wire [63:0] even_r 	= get_even(real);
 	wire [63:0] even_i 	= get_even(imag);
 	wire [63:0] odd_r 	= get_odd(real);
 	wire [63:0] odd_i 	= get_odd(imag);
 	
-	wire [63:0] twiddle = twiddle_vector_reg[127:64];
+	wire [127:0] twiddle_factors = calc_4_twiddle_factors(0, k, inverse, shift);
+	
+	wire [63:0] twiddle = twiddle_factors[127:64];
 	
 	wire [127:0] tw_vector = {twiddle[63:32], twiddle[63:32], twiddle[31:0], twiddle[31:0]};	
 	
@@ -521,16 +514,18 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2_SHUFFLE
 	assign imag = shuffle8x16(imagValues);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_NOSHUFFLE 
-{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
-{in twiddle_vector_reg}
+operation FFT_DIF_CALC_LAST_STAGE 
+{in AR k, in BR inverse, in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{}
 {
 	wire [63:0] even_r 	= get_even(real);
 	wire [63:0] even_i 	= get_even(imag);
 	wire [63:0] odd_r 	= get_odd(real);
 	wire [63:0] odd_i 	= get_odd(imag);
 	
-	wire [31:0] twiddle = twiddle_vector_reg[127:96];
+	wire [127:0] twiddle_factors = calc_4_twiddle_factors(0, k, inverse, shift);
+	
+	wire [31:0] twiddle = twiddle_factors[127:96];
 	
 	wire [127:0] tw_vector = {twiddle, twiddle, twiddle, twiddle};
 		
@@ -540,41 +535,45 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_NOSHUFFLE
 }
 
 // DIT
-operation FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIT
-{inout vect8x16 real, inout vect8x16 imag, in vect8x16 twiddle, in BR shift} 
-{}
+operation FFT_DIT_CALC_STAGE
+{inout vect8x16 real, inout vect8x16 imag, in BR shift, in AR m, in BR inverse}
+{in REG_K}
 {
 	wire [63:0] even_r 	= real[127:64];
 	wire [63:0] even_i 	= imag[127:64];
 	wire [63:0] odd_r 	= real[63:0];
 	wire [63:0] odd_i 	= imag[63:0];
+	
+	wire [127:0] twiddle_factors = calc_4_twiddle_factors(m, REG_K, inverse, shift);
 		
-	wire [255:0] bf_results = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, twiddle, shift);
+	wire [255:0] bf_results = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, twiddle_factors, shift);
 		
 	assign real = reverse_shuffle8x16(realFrom256(bf_results));
 	assign imag = reverse_shuffle8x16(imagFrom256(bf_results));
 }
 
 // DIF
-operation FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIF
-{inout vect8x16 real, inout vect8x16 imag, in vect8x16 twiddle, in BR shift} 
-{}
+operation FFT_DIF_CALC_STAGE
+{inout vect8x16 real, inout vect8x16 imag, in BR shift, in AR m, in BR inverse}
+{in REG_K}
 {
 	wire [63:0] even_r 	= real[127:64];
 	wire [63:0] even_i 	= imag[127:64];
 	wire [63:0] odd_r 	= real[63:0];
 	wire [63:0] odd_i 	= imag[63:0];
+	
+	wire [127:0] twiddle_factors = calc_4_twiddle_factors(m, REG_K, inverse, shift);
 		
-	wire [255:0] bf_results = calc_4_butterflies_dif(even_r, even_i, odd_r, odd_i, twiddle, shift);
+	wire [255:0] bf_results = calc_4_butterflies_dif(even_r, even_i, odd_r, odd_i, twiddle_factors, shift);
 		
 	assign real = reverse_shuffle8x16(realFrom256(bf_results));
 	assign imag = reverse_shuffle8x16(imagFrom256(bf_results));
 }
 
 format flix64 64 {slot_0, slot_1, slot_2}
-slot_opcodes slot_0 {L32I, L16SI, S16I, FFT_SIMD_LOAD}
+slot_opcodes slot_0 {FFT_SIMD_STORE_SHUFFLED, L32I, L16SI, S16I, FFT_SIMD_LOAD}
 slot_opcodes slot_1 {ADD.N, ADDX2}
-slot_opcodes slot_2 {L32I, L16SI, S16I, FFT_SIMD_LOAD}
+slot_opcodes slot_2 {FFT_SIMD_STORE_SHUFFLED, L32I, L16SI, S16I, FFT_SIMD_LOAD}
 
 operation FFT_CHECK_SHIFT_CONDITION {in vect8x16 j_vector, in vect8x16 m_vector, out BR should_shift} {}
 {

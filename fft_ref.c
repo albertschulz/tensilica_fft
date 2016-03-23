@@ -9,8 +9,8 @@ int fix_fft_dif_ref(fixed fr[], fixed fi[], int m, int inverse)
     fixed tr,ti;		//odd input
     fixed wr,wi;		//twiddle factor
 
-    //number of input data
-    n = 1<<m;
+    //number of input data (n = 2^m), m is the number of stages
+    n = 1 << m;
 
     if(n > N_WAVE) return -1;
 
@@ -20,6 +20,7 @@ int fix_fft_dif_ref(fixed fr[], fixed fi[], int m, int inverse)
 
     l = n>>1;
     k = LOG2_N_WAVE-m;
+    
     while(l > 0)
     {
         if(inverse)

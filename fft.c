@@ -198,10 +198,10 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
     nn = n - 1;
     scale = 0;
 	    
-    l = 1;
-    k = LOG2_N_WAVE-1;
+    l = n>>1;
+    k = LOG2_N_WAVE-m;
     
-    while(l < n) // 1 run per stage
+    while(l > 0) // 1 run per stage
     {
         if(inverse)
         {
@@ -235,17 +235,15 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
         istep = l << 1; // (2*L)		//step width of current butterfly
         
         // Handling for first 3 Stages
-        if (istep == 2)
+        if (istep == 8)
         {
 	        for (i=0; i<n; i = i+8)
 	        {
+	        	k = 7;
+	        	
 	        	//
-	        	// 1. Stage
+	        	// Thirst Last Stage
 	        	// 
-	        	k = LOG2_N_WAVE-1;
-	        	--k;
-	        	--k;
-	                   
 	        	
 	        	FFT_SIMD_SHUFFLE_LOAD_REAL(fr, i, SHUFFLE);
 	        	FFT_SIMD_SHUFFLE_LOAD_IMAG(fi, i, SHUFFLE);
@@ -256,7 +254,7 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
 				FFT_CALC_4_BUTTERFLIES_FROM_STATES_4_SHUFFLE(shift);
 
 				//
-				// 2. Stage
+				// Second Last Stage
 				//
 				
 	        	// 2 Twiddle Faktoren berechnen
@@ -267,42 +265,61 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
 				FFT_CALC_4_BUTTERFLIES_FROM_STATES_2_SHUFFLE(shift);
                 
 				//
-		        // 3. Stage
+		        // Last Stage
 				// 
 				
 				++k;
         		// Butterfly (+ shuffle integrated) Berechnung aus States mit gleichen Twiddle Faktoren		
         		FFT_CALC_TWIDDLE_FACTORx4_TO_STATES(k, inverse, shift);
         		FFT_CALC_4_BUTTERFLIES_FROM_STATES_NOSHUFFLE(shift);
-		        
 
-	        	
-
-                
                 // Werte speichern und shuffeln
 				FFT_SIMD_STORE_REAL(fr, i);
 				FFT_SIMD_STORE_IMAG(fi, i);
-				
-	        	--k;
-	        	--k;
-
 	        }
 	        
-	        // Für nachfolgende Berechnungen Schrittweite auf 8 erhöhen
-	        istep = 8;
+	        // Return from the while loop, since all calculations are done after this stage
+	        break;
         }
-        else { // Stages greater than 3
+        else { // Really first stages ...
         	
+        	WUR_REG_K(k);
+        	        	
         	for (i=0; i<n; i = i+istep)
         	{
-	        	for (m = i; m<l+i; m+=4)
+	        	for (m = i; m<l+i; m+=8)
 	        	{
-	        		// do something
+	        		vect8x16 real_1;
+					vect8x16 imag_1;
+					vect8x16 real_2;
+					vect8x16 imag_2;
+	        							
+	        		// Load Values
+					FFT_SIMD_LOAD_INTERLEAVED(fr, m, real_1, real_2, UPPER);
+					FFT_SIMD_LOAD_INTERLEAVED(fi, m, imag_1, imag_2, UPPER);
+					
+					FFT_SIMD_LOAD_INTERLEAVED(fr, m+l, real_1, real_2, LOWER);
+					FFT_SIMD_LOAD_INTERLEAVED(fi, m+l, imag_1, imag_2, LOWER);
+	
+					// Calculate twiddle factors
+					vect8x16 twiddles1 = FFT_SIMD_CALC_TWIDDLE_FACTORS(m, inverse, shift);
+					vect8x16 twiddles2 = FFT_SIMD_CALC_TWIDDLE_FACTORS(m+4, inverse, shift);
+					
+					// Do the actual calculation
+					FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIF(real_1, imag_1, twiddles1, shift);
+					FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIF(real_2, imag_2, twiddles2, shift);
+					
+					// Store Values
+					FFT_SIMD_STORE_INTERLEAVED(fr, m, real_1, real_2, UPPER);
+					FFT_SIMD_STORE_INTERLEAVED(fi, m, imag_1, imag_2, UPPER);
+					
+					FFT_SIMD_STORE_INTERLEAVED(fr, m+l, real_1, real_2, LOWER);
+					FFT_SIMD_STORE_INTERLEAVED(fi, m+l, imag_1, imag_2, LOWER);
 	        	}
         	}
         }
-        --k;
-        l = istep;
+        ++k;
+        l >>= 1;
     }
     
     
@@ -310,7 +327,7 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
        /* decimation in frequency - re-order data */
        for(m=1; m<=nn; ++m) 
        {
-          	mr = FFT_REVERSE_BITS(m, size);
+    	   mr = FFT_REVERSE_BITS(m, size);
        	
            if(mr <= m) continue;
            

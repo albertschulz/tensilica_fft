@@ -464,6 +464,7 @@ operation FFT_SIMD_STORE_IMAG {in AR *addr, in AR offset} {out VAddr, out MemDat
 	assign MemDataOut128 		= reverse_2_byte_wise(DataImag);
 }
 
+// DIT
 operation FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE
 {inout vect8x16 real, inout vect8x16 imag, in vect8x16 twiddle, in BR shift} 
 {}
@@ -474,6 +475,22 @@ operation FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE
 	wire [63:0] odd_i 	= imag[63:0];
 		
 	wire [255:0] bf_results = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, twiddle, shift);
+		
+	assign real = reverse_shuffle8x16(realFrom256(bf_results));
+	assign imag = reverse_shuffle8x16(imagFrom256(bf_results));
+}
+
+// DIF
+operation FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIF
+{inout vect8x16 real, inout vect8x16 imag, in vect8x16 twiddle, in BR shift} 
+{}
+{
+	wire [63:0] even_r 	= real[127:64];
+	wire [63:0] even_i 	= imag[127:64];
+	wire [63:0] odd_r 	= real[63:0];
+	wire [63:0] odd_i 	= imag[63:0];
+		
+	wire [255:0] bf_results = calc_4_butterflies_dif(even_r, even_i, odd_r, odd_i, twiddle, shift);
 		
 	assign real = reverse_shuffle8x16(realFrom256(bf_results));
 	assign imag = reverse_shuffle8x16(imagFrom256(bf_results));

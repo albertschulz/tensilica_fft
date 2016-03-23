@@ -17,7 +17,7 @@
 
 int fix_fft_dit(fixed fr[], fixed fi[], int m, int inverse)
 {
-    int mr,nn,i,j,l,k,istep, n, scale, shift;
+    int mr,nn,i,j,l,k, n, scale, shift;
     
     fixed qr,qi;		//even input
     fixed tr,ti;		//odd input
@@ -83,13 +83,8 @@ int fix_fft_dit(fixed fr[], fixed fi[], int m, int inverse)
             shift = 1; // evaluate putting this out of loop
         }
         
-        /* it may not be obvious, but the shift will be performed
-           on each data point exactly once, during this pass. */
-
-        istep = l << 1; // (2*L)		//step width of current butterfly
-        
         // Handling for first 3 Stages
-        if (istep == 2)
+        if (l == 1)
         {
 	        for (i=0; i<n; i = i+8)
 	        {
@@ -133,13 +128,13 @@ int fix_fft_dit(fixed fr[], fixed fi[], int m, int inverse)
 	        }
 	        
 	        // Für nachfolgende Berechnungen Schrittweite auf 8 erhöhen
-	        istep = 8;
+	        l = 4;
         }
         else { // Stages greater than 3
         	
         	WUR_REG_K(k);
         	
-        	for (i=0; i<n; i = i+istep)
+        	for (i=0; i<n; i = i+2*l)
         	{
 	        	for (m = i; m<l+i; m+=8)
 	        	{
@@ -173,7 +168,7 @@ int fix_fft_dit(fixed fr[], fixed fi[], int m, int inverse)
         	}
         }
         --k;
-        l = istep;
+        l <<= 1;
     }
 
     return scale;
@@ -181,7 +176,7 @@ int fix_fft_dit(fixed fr[], fixed fi[], int m, int inverse)
 
 int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
 {
-    int mr,nn,i,j,l,k,istep, n, scale, shift;
+    int mr,nn,i,j,l,k, n, scale, shift;
     
     fixed qr,qi;		//even input
     fixed tr,ti;		//odd input
@@ -231,16 +226,13 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
         
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
-
-        istep = l << 1; // (2*L)		//step width of current butterfly
         
         // Handling for first 3 Stages
-        if (istep == 8)
+        if (l == 4)
         {
 	        for (i=0; i<n; i = i+8)
 	        {
 	        	k = 7;
-	        	
 	        	//
 	        	// Thirst Last Stage
 	        	// 
@@ -285,7 +277,7 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
         	
         	WUR_REG_K(k);
         	        	
-        	for (i=0; i<n; i = i+istep)
+        	for (i=0; i<n; i = i+(2*l))
         	{
 	        	for (m = i; m<l+i; m+=8)
 	        	{

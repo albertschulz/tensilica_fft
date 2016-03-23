@@ -199,69 +199,66 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
         
-        // Handling for first 3 Stages
-        if (l == 4)
-        {
-	        for (i=0; i<n; i = i+8)
-	        {
-	        	register vect8x16 real, imag;
-	        	
-	        	k = 7;
+        // First Stages
+        if (l > 4) {
+			WUR_REG_K(k);
 
-	        	real = FFT_SIMD_LOAD_SHUFFLED(fr, i, SHUFFLE);
-	        	imag = FFT_SIMD_LOAD_SHUFFLED(fi, i, SHUFFLE);
-				
-				FFT_DIF_CALC_THIRD_LAST_STAGE(k, inverse, shift, real, imag);
-
-				++k;
-				
-				FFT_DIF_CALC_SECOND_LAST_STAGE(k, inverse, shift, real, imag);
-                
-				++k;
-
-        		FFT_DIF_CALC_LAST_STAGE(k, inverse, shift, real, imag);
-
-                // Werte speichern und shuffeln
-        		FFT_SIMD_STORE(fr, i, real);
-        		FFT_SIMD_STORE(fi, i, imag);
-	        }
-	        
-	        // Return from the while loop, since all calculations are done after this stage
-	        break;
-        }
-        else { // Really first stages ...
-        	
-        	WUR_REG_K(k);
-        	        	
-        	for (i=0; i<n; i = i+(2*l))
-        	{
-	        	for (m = i; m<l+i; m+=8)
-	        	{
-	        		vect8x16 real_1;
+			for (i=0; i<n; i = i+(2*l)) {
+				for (m = i; m<l+i; m+=8) {
+					vect8x16 real_1;
 					vect8x16 imag_1;
 					vect8x16 real_2;
 					vect8x16 imag_2;
-	        							
-	        		// Load Values
+
+					// Load Values
 					FFT_SIMD_LOAD_INTERLEAVED(fr, m, real_1, real_2, UPPER);
 					FFT_SIMD_LOAD_INTERLEAVED(fi, m, imag_1, imag_2, UPPER);
-					
+
 					FFT_SIMD_LOAD_INTERLEAVED(fr, m+l, real_1, real_2, LOWER);
 					FFT_SIMD_LOAD_INTERLEAVED(fi, m+l, imag_1, imag_2, LOWER);
-	
+
 					// Do the actual calculation
 					FFT_DIF_CALC_STAGE(real_1, imag_1, shift, m, inverse);
 					FFT_DIF_CALC_STAGE(real_2, imag_2, shift, m+4, inverse);
-					
+
 					// Store Values
 					FFT_SIMD_STORE_INTERLEAVED(fr, m, real_1, real_2, UPPER);
 					FFT_SIMD_STORE_INTERLEAVED(fi, m, imag_1, imag_2, UPPER);
-					
+
 					FFT_SIMD_STORE_INTERLEAVED(fr, m+l, real_1, real_2, LOWER);
 					FFT_SIMD_STORE_INTERLEAVED(fi, m+l, imag_1, imag_2, LOWER);
-	        	}
-        	}
-        }
+				}
+			}
+		} else { // Last three stages
+
+			for (i=0; i<n; i = i+8) {
+				register vect8x16 real, imag;
+
+				k = 7;
+
+				real = FFT_SIMD_LOAD_SHUFFLED(fr, i, SHUFFLE);
+				imag = FFT_SIMD_LOAD_SHUFFLED(fi, i, SHUFFLE);
+
+				FFT_DIF_CALC_THIRD_LAST_STAGE(k, inverse, shift, real, imag);
+
+				++k;
+
+				FFT_DIF_CALC_SECOND_LAST_STAGE(k, inverse, shift, real, imag);
+
+				++k;
+
+				FFT_DIF_CALC_LAST_STAGE(k, inverse, shift, real, imag);
+
+				// Werte speichern und shuffeln
+				FFT_SIMD_STORE(fr, i, real);
+				FFT_SIMD_STORE(fi, i, imag);
+			}
+
+			// Return from the while loop, since all calculations are done after this stage
+			break;
+
+		}
+
         ++k;
         l >>= 1;
     }

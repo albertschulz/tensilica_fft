@@ -571,9 +571,9 @@ operation FFT_DIF_CALC_STAGE
 }
 
 format flix64 64 {slot_0, slot_1, slot_2}
-slot_opcodes slot_0 {FFT_SIMD_STORE_SHUFFLED, L32I, L16SI, S16I, FFT_SIMD_LOAD}
+slot_opcodes slot_0 {FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLED, FFT_SIMD_STORE_SHUFFLED, L32I, L16SI, S16I, FFT_SIMD_LOAD}
 slot_opcodes slot_1 {ADD.N, ADDX2}
-slot_opcodes slot_2 {FFT_SIMD_STORE_SHUFFLED, L32I, L16SI, S16I, FFT_SIMD_LOAD}
+slot_opcodes slot_2 {FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLED, FFT_SIMD_STORE_SHUFFLED, L32I, L16SI, S16I, FFT_SIMD_LOAD}
 
 operation FFT_CHECK_SHIFT_CONDITION {in vect8x16 j_vector, in vect8x16 m_vector, out BR should_shift} {}
 {

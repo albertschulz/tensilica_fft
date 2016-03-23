@@ -66,20 +66,96 @@ table SINWAVE 16 512 {
    1607,   1406,   1206,   1005,    804,    603,    402,    201
 }
 
+//
+// Register
+//
+
+regfile vect8x16 128 4 v2rf
+
+//
+// Functions
+//
+
 function [31:0] calc_addr ([31:0] base_addr, [31:0] offset) slot_shared
 {
 	assign calc_addr = TIEadd(base_addr, {offset[30:0], 1'b0}, 1'b0);
 }
 
-//
-// Register
-//
+function [15:0] FixedSub ([15:0] a, [15:0] b)
+{
+	assign FixedSub = TIEadd(a, ~b, 1'b1);
+}
 
-regfile vect8x16 128 8 v2rf
+function [15:0] FixedMul ([15:0] a, [15:0] b)
+{
+	wire [31:0] d = TIEmul(a, b, 1'b1);
+	assign FixedMul = d[30:15];
+}
 
-//
-// Functions
-//
+function [15:0] real ([31:0] value)
+{
+	assign real = value[31:16];
+}
+
+function [15:0] imag ([31:0] value)
+{
+	assign imag = value[15:0];
+}
+
+// !!!
+// Always be careful when reading/writing to memory, it is in reverse order
+// Use this method for easy reversal
+function [127:0] reverse_2_byte_wise ([127:0] data)
+{
+	wire [15:0] v1 = data[127:112];
+	wire [15:0] v2 = data[111:96];
+	wire [15:0] v3 = data[95:80];
+	wire [15:0] v4 = data[79:64];
+	wire [15:0] v5 = data[63:48];
+	wire [15:0] v6 = data[47:32];
+	wire [15:0] v7 = data[31:16];
+	wire [15:0] v8 = data[15:0];
+	
+	assign reverse_2_byte_wise = {v8, v7, v6, v5, v4, v3, v2, v1};
+}
+
+function [127:0] reverse_shuffle8x16 ([127:0] vector8x16)
+{
+	wire [15:0] v1 = vector8x16[127:112];
+	wire [15:0] v2 = vector8x16[111:96];
+	wire [15:0] v3 = vector8x16[95:80];
+	wire [15:0] v4 = vector8x16[79:64];
+	wire [15:0] v5 = vector8x16[63:48];
+	wire [15:0] v6 = vector8x16[47:32];
+	wire [15:0] v7 = vector8x16[31:16];
+	wire [15:0] v8 = vector8x16[15:0];
+	
+	assign reverse_shuffle8x16 = {v1, v3, v5, v7, v2, v4, v6, v8};
+}
+
+function [127:0] shuffle8x16 ([127:0] vector8x16)
+{
+	wire [15:0] v1 = vector8x16[127:112];
+	wire [15:0] v2 = vector8x16[111:96];
+	wire [15:0] v3 = vector8x16[95:80];
+	wire [15:0] v4 = vector8x16[79:64];
+	wire [15:0] v5 = vector8x16[63:48];
+	wire [15:0] v6 = vector8x16[47:32];
+	wire [15:0] v7 = vector8x16[31:16];
+	wire [15:0] v8 = vector8x16[15:0];
+	
+	assign shuffle8x16 = {v1, v5, v2, v6, v3, v7, v4, v8};
+}
+
+function [63:0] upper ([127:0] vector8x16)
+{
+	assign upper = vector8x16[127:64];
+}
+
+function [63:0] lower ([127:0] vector8x16)
+{	
+	assign lower = vector8x16[63:0];
+}
 
 function [63:0] get_even([127:0] vector8x16)
 {
@@ -100,8 +176,6 @@ function [63:0] get_odd([127:0] vector8x16)
 	
 	assign get_odd = {v1, v3, v5, v7};
 }
-
-
 
 function [15:0] get_sin_value ([9:0] idx)
 {
@@ -130,6 +204,65 @@ function [15:0] abs([15:0] value)
 {
 	wire [15:0] negative_value = TIEadd(15'b0, ~value, 1'b1);
 	assign abs = TIEmux(isNegative(value), value, negative_value);
+}
+
+// Get all real values from 256 bit vectors (even, odd, even, odd, ...)
+function [127:0] realFrom256([255:0] vector)
+{
+	wire [63:0] result1 = vector[255:192];
+	wire [63:0] result2 = vector[191:128];
+	wire [63:0] result3 = vector[127:64];
+	wire [63:0] result4 = vector[63 :0];
+	
+	wire [15:0] result1_even_real 	= result1[63:48];
+	wire [15:0] result1_odd_real	= result1[31:16];
+	
+	wire [15:0] result2_even_real 	= result2[63:48];
+	wire [15:0] result2_odd_real	= result2[31:16];
+	
+	wire [15:0] result3_even_real 	= result3[63:48];
+	wire [15:0] result3_odd_real	= result3[31:16];
+	
+	wire [15:0] result4_even_real 	= result4[63:48];
+	wire [15:0] result4_odd_real	= result4[31:16];
+	
+	// ! Always be careful when reading/writing to memory, it is in reverse order
+	assign realFrom256 = 		{	
+									result1_even_real, result1_odd_real,
+									result2_even_real, result2_odd_real,
+									result3_even_real, result3_odd_real,
+									result4_even_real, result4_odd_real
+								};
+}
+
+// Get all imag values from 256 bit vectors (even, odd, even, odd, ...)
+function [127:0] imagFrom256([255:0] vector)
+{
+	// result = {even, odd}
+	wire [63:0] result1 = vector[255:192];
+	wire [63:0] result2 = vector[191:128];
+	wire [63:0] result3 = vector[127:64];
+	wire [63:0] result4 = vector[63 :0];
+	
+	wire [15:0] result1_even_imag 	= result1[47:32];
+	wire [15:0] result1_odd_imag	= result1[15:0];
+	
+	wire [15:0] result2_even_imag 	= result2[47:32];
+	wire [15:0] result2_odd_imag	= result2[15:0];
+	
+	wire [15:0] result3_even_imag 	= result3[47:32];
+	wire [15:0] result3_odd_imag	= result3[15:0];
+	
+	wire [15:0] result4_even_imag 	= result4[47:32];
+	wire [15:0] result4_odd_imag	= result4[15:0];
+	
+	// ! Always be careful when reading/writing to memory, it is in reverse order
+	assign imagFrom256 = {	
+									result1_even_imag, result1_odd_imag,
+									result2_even_imag, result2_odd_imag,
+									result3_even_imag, result3_odd_imag,
+									result4_even_imag, result4_odd_imag
+								};
 }
 
 //
@@ -204,27 +337,7 @@ operation FFT_REVERSE_BITS {in AR d, in AR size, out AR reversed_data} {}
     };
 }
 
-function [15:0] FixedSub ([15:0] a, [15:0] b)
-{
-	assign FixedSub = TIEadd(a, ~b, 1'b1);
-}
-
-function [15:0] FixedMul ([15:0] a, [15:0] b)
-{
-	wire [31:0] d = TIEmul(a, b, 1'b1);
-	assign FixedMul = d[30:15];
-}
-
-function [15:0] real ([31:0] value)
-{
-	assign real = value[31:16];
-}
-
-function [15:0] imag ([31:0] value)
-{
-	assign imag = value[15:0];
-}
-
+// DIT Butterfly Compute Node
 function [63:0] calc_butterfly_dit ([31:0] even, [31:0] odd, [31:0] twiddle, [0:0] shift)
 {
 	wire [15:0] wr 		= real(twiddle);
@@ -251,6 +364,7 @@ function [63:0] calc_butterfly_dit ([31:0] even, [31:0] odd, [31:0] twiddle, [0:
 	assign calc_butterfly_dit = {even_out, odd_out};
 }
 
+// DIF Butterfly Compute Node
 function [63:0] calc_butterfly_dif ([31:0] even, [31:0] odd, [31:0] twiddle, [0:0] shift)
 {
 	wire [15:0] wr 		= real(twiddle);
@@ -297,8 +411,6 @@ function [255:0] calc_4_butterflies_dif([63:0] qr, [63:0] qi, [63:0] fr, [63:0] 
 	assign calc_4_butterflies_dif = {result1, result2, result3, result4};
 }
 
-state BUTTERFLY_RESULTS 256 256'b0
-
 function [255:0] calc_4_butterflies_dit([63:0] qr, [63:0] qi, [63:0] fr, [63:0] fi, [127:0] tw_vec, [0:0] shift) shared
 {
 	wire [31:0] tw1 = tw_vec[127:96];
@@ -314,12 +426,14 @@ function [255:0] calc_4_butterflies_dit([63:0] qr, [63:0] qi, [63:0] fr, [63:0] 
 	assign calc_4_butterflies_dit = {result1, result2, result3, result4};
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES {in BR shift} {inout DataReal, inout DataImag, in twiddle_vector_reg}
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES
+{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{in twiddle_vector_reg}
 {
-	wire [63:0] even_r 	= get_even(DataReal);
-	wire [63:0] even_i 	= get_even(DataImag);
-	wire [63:0] odd_r 	= get_odd(DataReal);
-	wire [63:0] odd_i 	= get_odd(DataImag);
+	wire [63:0] even_r 	= get_even(real);
+	wire [63:0] even_i 	= get_even(imag);
+	wire [63:0] odd_r 	= get_odd(real);
+	wire [63:0] odd_i 	= get_odd(imag);
 	
 	wire [31:0] twiddle = twiddle_vector_reg[127:96];
 	
@@ -329,16 +443,18 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES {in BR shift} {inout DataReal, inou
 	wire [127:0] imagValues 	= imagFrom256(bf_results);
 	wire [127:0] realValues 	= realFrom256(bf_results);
 
-	assign DataReal = reverse_shuffle8x16(realValues);
-	assign DataImag = reverse_shuffle8x16(imagValues);
+	assign real = reverse_shuffle8x16(realValues);
+	assign imag = reverse_shuffle8x16(imagValues);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2 {in BR shift} {inout DataReal, inout DataImag, in twiddle_vector_reg}
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2 
+{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{in twiddle_vector_reg}
 {
-	wire [63:0] even_r 	= get_even(DataReal);
-	wire [63:0] even_i 	= get_even(DataImag);
-	wire [63:0] odd_r 	= get_odd(DataReal);
-	wire [63:0] odd_i 	= get_odd(DataImag);
+	wire [63:0] even_r 	= get_even(real);
+	wire [63:0] even_i 	= get_even(imag);
+	wire [63:0] odd_r 	= get_odd(real);
+	wire [63:0] odd_i 	= get_odd(imag);
 	
 	wire [63:0] twiddle = twiddle_vector_reg[127:64];
 	
@@ -348,72 +464,50 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2 {in BR shift} {inout DataReal, in
 	wire [127:0] imagValues 	= imagFrom256(bf_results);
 	wire [127:0] realValues 	= realFrom256(bf_results);
 
-	assign DataReal = reverse_shuffle8x16(realValues);
-	assign DataImag = reverse_shuffle8x16(imagValues);
+	assign real = reverse_shuffle8x16(realValues);
+	assign imag = reverse_shuffle8x16(imagValues);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_4_WITH_TWIDDLE {in AR twiddle, in BR shift} {inout DataReal, inout DataImag}
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_4 
+{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{in twiddle_vector_reg}
 {
-	wire [63:0] even_r 	= get_even(DataReal);
-	wire [63:0] even_i 	= get_even(DataImag);
-	wire [63:0] odd_r 	= get_odd(DataReal);
-	wire [63:0] odd_i 	= get_odd(DataImag);
+	wire [63:0] even_r 	= get_even(real);
+	wire [63:0] even_i 	= get_even(imag);
+	wire [63:0] odd_r 	= get_odd(real);
+	wire [63:0] odd_i 	= get_odd(imag);
 	
-	wire [127:0] tw_vector = {twiddle, twiddle, twiddle, twiddle};	
-		
-	wire [255:0] bf_results = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, tw_vector, shift);
-
-	assign DataReal = realFrom256(bf_results);
-	assign DataImag = imagFrom256(bf_results);
-}
-
-operation FFT_CALC_4_BUTTERFLIES {in AR twiddle, in BR shift} {inout DataReal, inout DataImag}
-{
-	wire [63:0] even_r 	= get_even(DataReal);
-	wire [63:0] even_i 	= get_even(DataImag);
-	wire [63:0] odd_r 	= get_odd(DataReal);
-	wire [63:0] odd_i 	= get_odd(DataImag);
+	wire [255:0] bf_results = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, twiddle_vector_reg, shift);
 	
-	wire [127:0] tw_vector = {twiddle, twiddle, twiddle, twiddle};	
-		
-	wire [255:0] bf_results = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, tw_vector, shift);
-
-	assign DataReal = realFrom256(bf_results);
-	assign DataImag = imagFrom256(bf_results);
+	assign real = realFrom256(bf_results);
+	assign imag	= imagFrom256(bf_results);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_4 {in BR shift} {in DataReal, in DataImag, out BUTTERFLY_RESULTS, in twiddle_vector_reg}
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_4_SHUFFLE 
+{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{in twiddle_vector_reg}
 {
-	wire [63:0] even_r 	= get_even(DataReal);
-	wire [63:0] even_i 	= get_even(DataImag);
-	wire [63:0] odd_r 	= get_odd(DataReal);
-	wire [63:0] odd_i 	= get_odd(DataImag);
-		
-	assign BUTTERFLY_RESULTS = calc_4_butterflies_dit(even_r, even_i, odd_r, odd_i, twiddle_vector_reg, shift);
-}
-
-
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_4_SHUFFLE {in BR shift} {inout DataReal, inout DataImag, in twiddle_vector_reg}
-{
-	wire [63:0] even_r 	= get_even(DataReal);
-	wire [63:0] even_i 	= get_even(DataImag);
-	wire [63:0] odd_r 	= get_odd(DataReal);
-	wire [63:0] odd_i 	= get_odd(DataImag);
+	wire [63:0] even_r 	= get_even(real);
+	wire [63:0] even_i 	= get_even(imag);
+	wire [63:0] odd_r 	= get_odd(real);
+	wire [63:0] odd_i 	= get_odd(imag);
 		
 	wire [255:0] bf_results		= calc_4_butterflies_dif(even_r, even_i, odd_r, odd_i, twiddle_vector_reg, shift);
 	wire [127:0] imagValues 	= imagFrom256(bf_results);
 	wire [127:0] realValues 	= realFrom256(bf_results);
 
-	assign DataReal = shuffle8x16(realValues);
-	assign DataImag = shuffle8x16(imagValues);
+	assign real = shuffle8x16(realValues);
+	assign imag = shuffle8x16(imagValues);
 }
 
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2_SHUFFLE {in BR shift} {inout DataReal, inout DataImag, in twiddle_vector_reg}
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2_SHUFFLE 
+{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{in twiddle_vector_reg}
 {
-	wire [63:0] even_r 	= get_even(DataReal);
-	wire [63:0] even_i 	= get_even(DataImag);
-	wire [63:0] odd_r 	= get_odd(DataReal);
-	wire [63:0] odd_i 	= get_odd(DataImag);
+	wire [63:0] even_r 	= get_even(real);
+	wire [63:0] even_i 	= get_even(imag);
+	wire [63:0] odd_r 	= get_odd(real);
+	wire [63:0] odd_i 	= get_odd(imag);
 	
 	wire [63:0] twiddle = twiddle_vector_reg[127:64];
 	
@@ -423,44 +517,30 @@ operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_2_SHUFFLE {in BR shift} {inout Data
 	wire [127:0] imagValues 	= imagFrom256(bf_results);
 	wire [127:0] realValues 	= realFrom256(bf_results);
 
-	assign DataReal = shuffle8x16(realValues);
-	assign DataImag = shuffle8x16(imagValues);
+	assign real = shuffle8x16(realValues);
+	assign imag = shuffle8x16(imagValues);
 }
 
-
-operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_NOSHUFFLE {in BR shift} {inout DataReal, inout DataImag, in twiddle_vector_reg}
+operation FFT_CALC_4_BUTTERFLIES_FROM_STATES_NOSHUFFLE 
+{in BR shift, inout vect8x16 real, inout vect8x16 imag} 
+{in twiddle_vector_reg}
 {
-	wire [63:0] even_r 	= get_even(DataReal);
-	wire [63:0] even_i 	= get_even(DataImag);
-	wire [63:0] odd_r 	= get_odd(DataReal);
-	wire [63:0] odd_i 	= get_odd(DataImag);
+	wire [63:0] even_r 	= get_even(real);
+	wire [63:0] even_i 	= get_even(imag);
+	wire [63:0] odd_r 	= get_odd(real);
+	wire [63:0] odd_i 	= get_odd(imag);
 	
 	wire [31:0] twiddle = twiddle_vector_reg[127:96];
 	
 	wire [127:0] tw_vector = {twiddle, twiddle, twiddle, twiddle};
 		
 	wire [255:0] bf_results = calc_4_butterflies_dif(even_r, even_i, odd_r, odd_i, tw_vector, shift);
-	wire [127:0] imagValues 	= imagFrom256(bf_results);
-	wire [127:0] realValues 	= realFrom256(bf_results);
-
-	assign DataReal = realValues;
-	assign DataImag = imagValues;
-}
-
-operation FFT_SIMD_STORE_REAL {in AR *addr, in AR offset} {out VAddr, out MemDataOut128, in DataReal}
-{
-	assign VAddr 				= calc_addr(addr, offset);
-	assign MemDataOut128 		= reverse_2_byte_wise(DataReal) ;
-}
-
-operation FFT_SIMD_STORE_IMAG {in AR *addr, in AR offset} {out VAddr, out MemDataOut128, in DataImag}
-{
-	assign VAddr 				= calc_addr(addr, offset);
-	assign MemDataOut128 		= reverse_2_byte_wise(DataImag);
+	assign imag 	= imagFrom256(bf_results);
+	assign real 	= realFrom256(bf_results);
 }
 
 // DIT
-operation FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE
+operation FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIT
 {inout vect8x16 real, inout vect8x16 imag, in vect8x16 twiddle, in BR shift} 
 {}
 {
@@ -491,196 +571,10 @@ operation FFT_CALC_4_BUTTERFLIES_AND_SHUFFLE_DIF
 	assign imag = reverse_shuffle8x16(imagFrom256(bf_results));
 }
 
-// Get all real values from 256 bit vectors (even, odd, even, odd, ...)
-function [127:0] realFrom256([255:0] vector)
-{
-	wire [63:0] result1 = vector[255:192];
-	wire [63:0] result2 = vector[191:128];
-	wire [63:0] result3 = vector[127:64];
-	wire [63:0] result4 = vector[63 :0];
-	
-	wire [15:0] result1_even_real 	= result1[63:48];
-	wire [15:0] result1_odd_real	= result1[31:16];
-	
-	wire [15:0] result2_even_real 	= result2[63:48];
-	wire [15:0] result2_odd_real	= result2[31:16];
-	
-	wire [15:0] result3_even_real 	= result3[63:48];
-	wire [15:0] result3_odd_real	= result3[31:16];
-	
-	wire [15:0] result4_even_real 	= result4[63:48];
-	wire [15:0] result4_odd_real	= result4[31:16];
-	
-	// ! Always be careful when reading/writing to memory, it is in reverse order
-	assign realFrom256 = 		{	
-									result1_even_real, result1_odd_real,
-									result2_even_real, result2_odd_real,
-									result3_even_real, result3_odd_real,
-									result4_even_real, result4_odd_real
-								};
-}
-
-// Get all imag values from 256 bit vectors (even, odd, even, odd, ...)
-function [127:0] imagFrom256([255:0] vector)
-{
-	// result = {even, odd}
-	wire [63:0] result1 = vector[255:192];
-	wire [63:0] result2 = vector[191:128];
-	wire [63:0] result3 = vector[127:64];
-	wire [63:0] result4 = vector[63 :0];
-	
-	wire [15:0] result1_even_imag 	= result1[47:32];
-	wire [15:0] result1_odd_imag	= result1[15:0];
-	
-	wire [15:0] result2_even_imag 	= result2[47:32];
-	wire [15:0] result2_odd_imag	= result2[15:0];
-	
-	wire [15:0] result3_even_imag 	= result3[47:32];
-	wire [15:0] result3_odd_imag	= result3[15:0];
-	
-	wire [15:0] result4_even_imag 	= result4[47:32];
-	wire [15:0] result4_odd_imag	= result4[15:0];
-	
-	// ! Always be careful when reading/writing to memory, it is in reverse order
-	assign imagFrom256 = {	
-									result1_even_imag, result1_odd_imag,
-									result2_even_imag, result2_odd_imag,
-									result3_even_imag, result3_odd_imag,
-									result4_even_imag, result4_odd_imag
-								};
-}
-
-state DataReal 128 128'b0
-state DataImag 128 128'b0
-
-operation FFT_SIMD_LOAD_REAL {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out DataReal}
-{
-	assign VAddr =  calc_addr(addr, offset);
-	assign DataReal = reverse_2_byte_wise(MemDataIn128);
-}
-
-operation FFT_SIMD_LOAD_IMAG {in AR *addr, in AR offset}{out VAddr, in MemDataIn128, out DataImag}
-{
-	assign VAddr =  calc_addr(addr, offset);
-	assign DataImag = reverse_2_byte_wise(MemDataIn128);
-}
-
 format flix64 64 {slot_0, slot_1, slot_2}
-slot_opcodes slot_0 {L32I, L16SI, S16I, FFT_SIMD_LOAD, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
+slot_opcodes slot_0 {L32I, L16SI, S16I, FFT_SIMD_LOAD}
 slot_opcodes slot_1 {ADD.N, ADDX2}
-slot_opcodes slot_2 {L32I, L16SI, S16I, FFT_SIMD_LOAD, FFT_SIMD_SHUFFLE_STORE_REAL, FFT_SIMD_SHUFFLE_STORE_IMAG}
-
-// !!!
-// Always be careful when reading/writing to memory, it is in reverse order
-// Use this method for easy reversal
-function [127:0] reverse_2_byte_wise ([127:0] data)
-{
-	wire [15:0] v1 = data[127:112];
-	wire [15:0] v2 = data[111:96];
-	wire [15:0] v3 = data[95:80];
-	wire [15:0] v4 = data[79:64];
-	wire [15:0] v5 = data[63:48];
-	wire [15:0] v6 = data[47:32];
-	wire [15:0] v7 = data[31:16];
-	wire [15:0] v8 = data[15:0];
-	
-	assign reverse_2_byte_wise = {v8, v7, v6, v5, v4, v3, v2, v1};
-}
-
-function [127:0] reverse_shuffle8x16 ([127:0] vector8x16)
-{
-	wire [15:0] v1 = vector8x16[127:112];
-	wire [15:0] v2 = vector8x16[111:96];
-	wire [15:0] v3 = vector8x16[95:80];
-	wire [15:0] v4 = vector8x16[79:64];
-	wire [15:0] v5 = vector8x16[63:48];
-	wire [15:0] v6 = vector8x16[47:32];
-	wire [15:0] v7 = vector8x16[31:16];
-	wire [15:0] v8 = vector8x16[15:0];
-	
-	assign reverse_shuffle8x16 = {v1, v3, v5, v7, v2, v4, v6, v8};
-}
-
-function [127:0] shuffle8x16 ([127:0] vector8x16)
-{
-	wire [15:0] v1 = vector8x16[127:112];
-	wire [15:0] v2 = vector8x16[111:96];
-	wire [15:0] v3 = vector8x16[95:80];
-	wire [15:0] v4 = vector8x16[79:64];
-	wire [15:0] v5 = vector8x16[63:48];
-	wire [15:0] v6 = vector8x16[47:32];
-	wire [15:0] v7 = vector8x16[31:16];
-	wire [15:0] v8 = vector8x16[15:0];
-	
-	assign shuffle8x16 = {v1, v5, v2, v6, v3, v7, v4, v8};
-}
-
-function [63:0] upper ([127:0] vector8x16)
-{
-	assign upper = vector8x16[127:64];
-}
-
-function [63:0] lower ([127:0] vector8x16)
-{	
-	assign lower = vector8x16[63:0];
-}
-
-operation FFT_SIMD_SHUFFLE_STORE_REAL 
-{in AR *addr, in AR offset, in BR reverse} 
-{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
-{
-	assign VAddr 				= calc_addr(addr, offset);
-	wire [127:0] realValues 	= realFrom256(BUTTERFLY_RESULTS);
-	wire [127:0] shuffledValues = TIEmux(reverse, shuffle8x16(realValues), reverse_shuffle8x16(realValues));
-	assign MemDataOut128 		= reverse_2_byte_wise(shuffledValues);
-}
-
-operation FFT_SIMD_SHUFFLE_STORE_IMAG 
-{in AR *addr, in AR offset, in BR reverse} 
-{out VAddr, out MemDataOut128, in BUTTERFLY_RESULTS}
-{
-	assign VAddr 				= calc_addr(addr, offset);
-	wire [127:0] imagValues 	= imagFrom256(BUTTERFLY_RESULTS);
-	wire [127:0] shuffledValues = TIEmux(reverse, shuffle8x16(imagValues), reverse_shuffle8x16(imagValues));
-	assign MemDataOut128 		= reverse_2_byte_wise(shuffledValues);
-}
-
-operation FFT_SIMD_LOAD 
-{in AR *addr, in AR offset, out vect8x16 output} 
-{out VAddr, in MemDataIn128}
-{
-	assign VAddr = calc_addr(addr, offset);
-	assign output = reverse_2_byte_wise(MemDataIn128);
-}
-
-//
-// Reads 128 bit from memory
-// Assigns upper 64 bits to vector 1, and
-// lower 64 bits to vector 2
-// By setting the flag load_upper you can control whether the 64 bits should be stored 
-// in the upper or lower location of the vectors
-operation FFT_SIMD_LOAD_INTERLEAVED 
-{in AR *addr, in AR offset, inout vect8x16 vec1, inout vect8x16 vec2, in BR load_upper} 
-{out VAddr, in MemDataIn128}
-{
-	assign VAddr = calc_addr(addr, offset);
-	wire [127:0] mem = reverse_2_byte_wise(MemDataIn128);
-	assign vec1 = TIEmux(load_upper, {vec1[127:64], mem[127:64]}, {mem[127:64], vec1[63:0]});
-	assign vec2 = TIEmux(load_upper, {vec2[127:64], mem[63:0]}, {mem[63:0], vec2[63:0]});
-}
-
-operation FFT_SIMD_STORE_INTERLEAVED 
-{in AR *addr, in AR offset, in vect8x16 vec1, in vect8x16 vec2, in BR store_upper} 
-{out VAddr, out MemDataOut128}
-{
-	assign VAddr = calc_addr(addr, offset);
-		
-	wire [63:0] data1 = TIEmux(store_upper, lower(vec1), upper(vec1));
-	wire [63:0] data2 = TIEmux(store_upper, lower(vec2), upper(vec2));
-		
-	wire [127:0] data = {data1, data2};
-	assign MemDataOut128 = reverse_2_byte_wise(data);
-}
+slot_opcodes slot_2 {L32I, L16SI, S16I, FFT_SIMD_LOAD}
 
 operation FFT_CHECK_SHIFT_CONDITION {in vect8x16 j_vector, in vect8x16 m_vector, out BR should_shift} {}
 {
@@ -720,16 +614,67 @@ operation FFT_CHECK_SHIFT_CONDITION {in vect8x16 j_vector, in vect8x16 m_vector,
 							| 	greaterThan16383(m8);
 }
 
-operation FFT_SIMD_SHUFFLE_LOAD_REAL {in AR *addr, in AR offset, in BR reverse} {out VAddr, in MemDataIn128, out DataReal}
+operation FFT_SIMD_LOAD_SHUFFLED
+{in AR *addr, in AR offset, out vect8x16 output, in BR reverse} 
+{out VAddr, in MemDataIn128}
 {
 	assign VAddr =  calc_addr(addr, offset);
 	wire [127:0] reverseDataIn = reverse_2_byte_wise(MemDataIn128);
-	assign DataReal = TIEmux(reverse, shuffle8x16(reverseDataIn), reverse_shuffle8x16(reverseDataIn));
+	assign output = TIEmux(reverse, shuffle8x16(reverseDataIn), reverse_shuffle8x16(reverseDataIn));
 }
 
-operation FFT_SIMD_SHUFFLE_LOAD_IMAG {in AR *addr, in AR offset, in BR reverse} {out VAddr, in MemDataIn128, out DataImag}
+operation FFT_SIMD_STORE_SHUFFLED
+{in AR *addr, in AR offset, in vect8x16 input, in BR reverse} 
+{out VAddr, out MemDataOut128}
 {
-	assign VAddr =  calc_addr(addr, offset);
-	wire [127:0] reverseDataIn = reverse_2_byte_wise(MemDataIn128);
-	assign DataImag = TIEmux(reverse, shuffle8x16(reverseDataIn), reverse_shuffle8x16(reverseDataIn));
+	assign VAddr 				= calc_addr(addr, offset);
+	wire [127:0] shuffledValues = TIEmux(reverse, shuffle8x16(input), reverse_shuffle8x16(input));
+	assign MemDataOut128 		= reverse_2_byte_wise(shuffledValues);
 }
+
+operation FFT_SIMD_LOAD 
+{in AR *addr, in AR offset, out vect8x16 output} 
+{out VAddr, in MemDataIn128}
+{
+	assign VAddr = calc_addr(addr, offset);
+	assign output = reverse_2_byte_wise(MemDataIn128);
+}
+
+operation FFT_SIMD_STORE 
+{in AR *addr, in AR offset, in vect8x16 data} 
+{out VAddr, out MemDataOut128}
+{
+	assign VAddr 				= calc_addr(addr, offset);
+	assign MemDataOut128 		= reverse_2_byte_wise(data);
+}
+
+//
+// Reads 128 bit from memory
+// Assigns upper 64 bits to vector 1, and
+// lower 64 bits to vector 2
+// By setting the flag load_upper you can control whether the 64 bits should be stored 
+// in the upper or lower location of the vectors
+operation FFT_SIMD_LOAD_INTERLEAVED 
+{in AR *addr, in AR offset, inout vect8x16 vec1, inout vect8x16 vec2, in BR load_upper} 
+{out VAddr, in MemDataIn128}
+{
+	assign VAddr = calc_addr(addr, offset);
+	wire [127:0] mem = reverse_2_byte_wise(MemDataIn128);
+	assign vec1 = TIEmux(load_upper, {vec1[127:64], mem[127:64]}, {mem[127:64], vec1[63:0]});
+	assign vec2 = TIEmux(load_upper, {vec2[127:64], mem[63:0]}, {mem[63:0], vec2[63:0]});
+}
+
+operation FFT_SIMD_STORE_INTERLEAVED 
+{in AR *addr, in AR offset, in vect8x16 vec1, in vect8x16 vec2, in BR store_upper} 
+{out VAddr, out MemDataOut128}
+{
+	assign VAddr = calc_addr(addr, offset);
+		
+	wire [63:0] data1 = TIEmux(store_upper, lower(vec1), upper(vec1));
+	wire [63:0] data2 = TIEmux(store_upper, lower(vec2), upper(vec2));
+		
+	wire [127:0] data = {data1, data2};
+	assign MemDataOut128 = reverse_2_byte_wise(data);
+}
+
+

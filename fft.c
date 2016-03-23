@@ -19,9 +19,7 @@ int fix_fft_dit(fixed fr[], fixed fi[], int m, int inverse)
 {
     int mr,nn,i,j,l,k, n, scale, shift;
     
-    fixed qr,qi;		//even input
     fixed tr,ti;		//odd input
-    fixed wr,wi;		//twiddle factor
     
     //number of input data (n = 2^m), m is the number of stages
     n = 1 << m;
@@ -177,9 +175,7 @@ int fix_fft_dif(fixed fr[], fixed fi[], int m, int inverse)
 {
     int mr,nn,i,j,l,k, n, scale, shift;
     
-    fixed qr,qi;		//even input
     fixed tr,ti;		//odd input
-    fixed wr,wi;		//twiddle factor
     
     //number of input data (n = 2^m), m is the number of stages
     n = 1 << m;

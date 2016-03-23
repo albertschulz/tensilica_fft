@@ -2,6 +2,7 @@
 #include        <math.h>
 #include		"fixed.h"
 #include 		"fft.h"
+#include 		"fft_ref.h"
 
 #define M       3
 

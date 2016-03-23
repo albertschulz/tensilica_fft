@@ -66,15 +66,13 @@ table SINWAVE 16 512 {
    1607,   1406,   1206,   1005,    804,    603,    402,    201
 }
 
-//
 // Register
-//
-
 regfile vect8x16 128 4 v2rf
 
-//
+// Immediates
+immediate_range immediate 0 1 1
+
 // Functions
-//
 
 function [31:0] calc_addr ([31:0] base_addr, [31:0] offset) slot_shared
 {
@@ -614,20 +612,20 @@ operation FFT_CHECK_SHIFT_CONDITION {in vect8x16 j_vector, in vect8x16 m_vector,
 }
 
 operation FFT_SIMD_LOAD_SHUFFLED
-{in AR *addr, in AR offset, out vect8x16 output, in BR reverse} 
+{in AR *addr, in AR offset, out vect8x16 output, in immediate reverse} 
 {out VAddr, in MemDataIn128}
 {
 	assign VAddr =  calc_addr(addr, offset);
 	wire [127:0] reverseDataIn = reverse_2_byte_wise(MemDataIn128);
-	assign output = TIEmux(reverse, shuffle8x16(reverseDataIn), reverse_shuffle8x16(reverseDataIn));
+	assign output = TIEmux(reverse[0], shuffle8x16(reverseDataIn), reverse_shuffle8x16(reverseDataIn));
 }
 
 operation FFT_SIMD_STORE_SHUFFLED
-{in AR *addr, in AR offset, in vect8x16 input, in BR reverse} 
+{in AR *addr, in AR offset, in vect8x16 input, in immediate reverse} 
 {out VAddr, out MemDataOut128}
 {
 	assign VAddr 				= calc_addr(addr, offset);
-	wire [127:0] shuffledValues = TIEmux(reverse, shuffle8x16(input), reverse_shuffle8x16(input));
+	wire [127:0] shuffledValues = TIEmux(reverse[0], shuffle8x16(input), reverse_shuffle8x16(input));
 	assign MemDataOut128 		= reverse_2_byte_wise(shuffledValues);
 }
 
@@ -654,23 +652,23 @@ operation FFT_SIMD_STORE
 // By setting the flag load_upper you can control whether the 64 bits should be stored 
 // in the upper or lower location of the vectors
 operation FFT_SIMD_LOAD_INTERLEAVED 
-{in AR *addr, in AR offset, inout vect8x16 vec1, inout vect8x16 vec2, in BR load_upper} 
+{in AR *addr, in AR offset, inout vect8x16 vec1, inout vect8x16 vec2, in immediate load_upper} 
 {out VAddr, in MemDataIn128}
 {
 	assign VAddr = calc_addr(addr, offset);
 	wire [127:0] mem = reverse_2_byte_wise(MemDataIn128);
-	assign vec1 = TIEmux(load_upper, {vec1[127:64], mem[127:64]}, {mem[127:64], vec1[63:0]});
-	assign vec2 = TIEmux(load_upper, {vec2[127:64], mem[63:0]}, {mem[63:0], vec2[63:0]});
+	assign vec1 = TIEmux(load_upper[0], {vec1[127:64], mem[127:64]}, {mem[127:64], vec1[63:0]});
+	assign vec2 = TIEmux(load_upper[0], {vec2[127:64], mem[63:0]}, {mem[63:0], vec2[63:0]});
 }
 
 operation FFT_SIMD_STORE_INTERLEAVED 
-{in AR *addr, in AR offset, in vect8x16 vec1, in vect8x16 vec2, in BR store_upper} 
+{in AR *addr, in AR offset, in vect8x16 vec1, in vect8x16 vec2, in immediate store_upper} 
 {out VAddr, out MemDataOut128}
 {
 	assign VAddr = calc_addr(addr, offset);
 		
-	wire [63:0] data1 = TIEmux(store_upper, lower(vec1), upper(vec1));
-	wire [63:0] data2 = TIEmux(store_upper, lower(vec2), upper(vec2));
+	wire [63:0] data1 = TIEmux(store_upper[0], lower(vec1), upper(vec1));
+	wire [63:0] data2 = TIEmux(store_upper[0], lower(vec2), upper(vec2));
 		
 	wire [127:0] data = {data1, data2};
 	assign MemDataOut128 = reverse_2_byte_wise(data);

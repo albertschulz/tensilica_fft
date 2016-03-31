@@ -7,9 +7,11 @@ This project contains:
 ## Performance Results for DIT algorithm
 The following results apply for compilation with optimization level -O2 and feedback optimization.
 
-N=8:      243
-N=256:    9533
-N=1024:   41573
+- N=8:      243
+- N=256:    9533
+- N=1024:   41573
+
+The speedup in comparison to the c implementation: 10-20
 
 Note:
 This task was done for the HW/SW Codesign Lab at TU Dresden.
